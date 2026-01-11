@@ -5,48 +5,75 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 function Admin() {
   const [users, setUsers] = useState({});
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(null);
 
-  useEffect(() => {
-    const loadUsers = async () => {
-      const token = localStorage.getItem('token');
-      let role = null;
-      try {
-        role = token ? JSON.parse(atob(token.split('.')[1])).role : null;
-      } catch (e) {
-        console.warn('❌ Failed to decode token role');
-      }
+  const loadUsers = async () => {
+    const token = localStorage.getItem('token');
+    let role = null;
+    try {
+      role = token ? JSON.parse(atob(token.split('.')[1])).role : null;
+    } catch (e) {
+      console.warn('❌ Failed to decode token role');
+    }
 
-      // Verify admin is logged in
-      if (!token || role !== 'admin') {
-        console.log('❌ Not authorized to access admin panel');
+    // Verify admin is logged in
+    if (!token || role !== 'admin') {
+      console.log('❌ Not authorized to access admin panel');
+      window.location.href = '/admin-login';
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/admin`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      // If unauthorized, redirect
+      if (res.status === 401 || res.status === 403) {
+        console.log('❌ Admin session expired');
+        localStorage.clear();
         window.location.href = '/admin-login';
         return;
       }
 
-      try {
-        const res = await fetch(`${API_URL}/admin`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+      const data = await res.json();
+      setUsers(data && data.data ? data.data : {});
+    } catch (error) {
+      console.error('❌ Error loading admin data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        // If unauthorized, redirect
-        if (res.status === 401 || res.status === 403) {
-          console.log('❌ Admin session expired');
-          localStorage.clear();
-          window.location.href = '/admin-login';
-          return;
-        }
+  const handleDeleteUser = async (phone) => {
+    if (!window.confirm(`Are you sure you want to delete user ${phone}?`)) {
+      return;
+    }
 
+    const token = localStorage.getItem('token');
+    setDeleting(phone);
+
+    try {
+      const res = await fetch(`${API_URL}/admin/users/${phone}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        console.log('✅ User deleted successfully');
+        // Reload users
+        setUsers(users.filter(u => u.phone !== phone));
+      } else {
         const data = await res.json();
-        setUsers(data && data.data ? data.data : {});
-      } catch (error) {
-        console.error('❌ Error loading admin data:', error);
-      } finally {
-        setLoading(false);
+        alert('Error: ' + (data.error || 'Failed to delete user'));
       }
-    };
-
-    loadUsers();
-  }, []);
+    } catch (error) {
+      console.error('❌ Error deleting user:', error);
+      alert('Network error: ' + error.message);
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   const logout = () => {
     localStorage.clear();
@@ -81,6 +108,21 @@ function Admin() {
       
       <h2>Registered Users</h2>
       
+      <button 
+        onClick={loadUsers}
+        style={{
+          marginBottom: '10px',
+          padding: '8px 15px',
+          backgroundColor: '#007bff',
+          color: 'white',
+          border: 'none',
+          borderRadius: '3px',
+          cursor: 'pointer'
+        }}
+      >
+        🔄 Refresh
+      </button>
+      
       {!users || users.length === 0 ? (
         <p>No users yet</p>
       ) : (
@@ -91,7 +133,8 @@ function Admin() {
               <th style={{ padding: '12px', textAlign: 'left', borderRight: '1px solid #ddd' }}>Name</th>
               <th style={{ padding: '12px', textAlign: 'left', borderRight: '1px solid #ddd' }}>Role</th>
               <th style={{ padding: '12px', textAlign: 'left', borderRight: '1px solid #ddd' }}>Merchant ID</th>
-              <th style={{ padding: '12px', textAlign: 'left' }}>Created</th>
+              <th style={{ padding: '12px', textAlign: 'left', borderRight: '1px solid #ddd' }}>Created</th>
+              <th style={{ padding: '12px', textAlign: 'center' }}>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -111,8 +154,26 @@ function Admin() {
                   </span>
                 </td>
                 <td style={{ padding: '12px', borderRight: '1px solid #ddd' }}>{user.merchantId || '-'}</td>
-                <td style={{ padding: '12px' }}>
+                <td style={{ padding: '12px', borderRight: '1px solid #ddd' }}>
                   {new Date(user.createdAt).toLocaleDateString()}
+                </td>
+                <td style={{ padding: '12px', textAlign: 'center' }}>
+                  <button
+                    onClick={() => handleDeleteUser(user.phone)}
+                    disabled={deleting === user.phone}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: deleting === user.phone ? '#ccc' : '#dc3545',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: deleting === user.phone ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {deleting === user.phone ? '⏳ Deleting...' : '🗑️ Delete'}
+                  </button>
                 </td>
               </tr>
             ))}

@@ -716,6 +716,33 @@ app.get('/api/admin', verifyToken, async (req, res) => {
   }
 });
 
+// Delete user (admin only)
+app.delete('/api/admin/users/:phone', verifyToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const { phone } = req.params;
+
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number required' });
+    }
+
+    const deletedUser = await User.findOneAndDelete({ phone });
+
+    if (!deletedUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log(`🗑️  User deleted by admin: ${phone}`);
+    res.json({ success: true, message: 'User deleted successfully', user: deletedUser });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
 // Start server
 app.listen(PORT, HOST, () => {
   console.log('\n' + '═'.repeat(70));
