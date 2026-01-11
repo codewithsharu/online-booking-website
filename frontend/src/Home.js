@@ -46,23 +46,26 @@ function Home() {
         const data = await res.json();
         console.log('✅ User data received:', data);
         
+        // API returns { user: { ... } }
+        const userData = data.user || data;
+
         // Verify user exists
-        if (!data || !data.phone) {
+        if (!userData || !userData.phone) {
           console.log('❌ User data invalid, redirecting to login');
           localStorage.clear();
           window.location.href = '/login';
           return;
         }
 
-        setUser(data);
+        setUser(userData);
         
         // If user doesn't have name, ask for it
-        if (!data.hasName && !data.name) {
+        if (!userData.name) {
           console.log('📝 User needs to enter name');
           setAskingName(true);
         } else {
           // Show welcome back for returning users
-          console.log('👋 Welcoming returning user:', data.name);
+          console.log('👋 Welcoming returning user:', userData.name);
           setShowWelcomeBack(true);
           setTimeout(() => setShowWelcomeBack(false), 3000);
         }
