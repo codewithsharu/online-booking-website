@@ -81,21 +81,39 @@ function Admin() {
       
       <h2>Registered Users</h2>
       
-      {!users || Object.keys(users).length === 0 ? (
+      {!users || users.length === 0 ? (
         <p>No users yet</p>
       ) : (
-        <table>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
           <thead>
-            <tr>
-              <th>Phone</th>
-              <th>Role</th>
+            <tr style={{ backgroundColor: '#f0f0f0', borderBottom: '2px solid #ddd' }}>
+              <th style={{ padding: '12px', textAlign: 'left', borderRight: '1px solid #ddd' }}>Phone</th>
+              <th style={{ padding: '12px', textAlign: 'left', borderRight: '1px solid #ddd' }}>Name</th>
+              <th style={{ padding: '12px', textAlign: 'left', borderRight: '1px solid #ddd' }}>Role</th>
+              <th style={{ padding: '12px', textAlign: 'left', borderRight: '1px solid #ddd' }}>Merchant ID</th>
+              <th style={{ padding: '12px', textAlign: 'left' }}>Created</th>
             </tr>
           </thead>
           <tbody>
-            {Object.entries(users).map(([phone, user]) => (
-              <tr key={phone}>
-                <td>{phone}</td>
-                <td>{user.role}</td>
+            {users.map((user, idx) => (
+              <tr key={idx} style={{ borderBottom: '1px solid #ddd', backgroundColor: idx % 2 === 0 ? '#fff' : '#f9f9f9' }}>
+                <td style={{ padding: '12px', borderRight: '1px solid #ddd' }}>{user.phone}</td>
+                <td style={{ padding: '12px', borderRight: '1px solid #ddd' }}>{user.name || '-'}</td>
+                <td style={{ padding: '12px', borderRight: '1px solid #ddd' }}>
+                  <span style={{
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    backgroundColor: user.role === 'admin' ? '#ff6b6b' : user.role === 'merchant' ? '#4ecdc4' : '#95e1d3',
+                    color: 'white',
+                    fontSize: '12px'
+                  }}>
+                    {user.role}
+                  </span>
+                </td>
+                <td style={{ padding: '12px', borderRight: '1px solid #ddd' }}>{user.merchantId || '-'}</td>
+                <td style={{ padding: '12px' }}>
+                  {new Date(user.createdAt).toLocaleDateString()}
+                </td>
               </tr>
             ))}
           </tbody>

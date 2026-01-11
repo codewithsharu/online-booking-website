@@ -695,12 +695,15 @@ app.get('/api/admin', verifyToken, async (req, res) => {
   }
   
   try {
+    // Fetch all users
+    const users = await User.find({}).select('phone name role merchantId isActive createdAt').lean();
     const userCount = await User.countDocuments();
     const merchantCount = await User.countDocuments({ role: 'merchant' });
     const pendingCount = await MerchantApplication.countDocuments({ status: 'pending' });
     
     res.json({ 
       message: 'Admin dashboard',
+      data: users,
       stats: {
         totalUsers: userCount,
         totalMerchants: merchantCount,
