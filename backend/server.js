@@ -118,13 +118,23 @@ app.post('/api/send-otp', async (req, res) => {
     // Use APIKey-based SMS endpoint (works with provided example)
     const smsUrl = `${SMS_API_URL}?APIKey=${SMS_API_KEY}&msisdn=91${normalizedPhone}&sid=${SMS_SENDER_ID}&msg=${encodeURIComponent(message)}&fl=0&gwid=${SMS_GWID}`;
 
-    await axios.get(smsUrl);
+    const smsResponse = await axios.get(smsUrl);
+    const smsData = typeof smsResponse.data === 'string' ? smsResponse.data : JSON.stringify(smsResponse.data);
     console.log(`📱 OTP sent to ${normalizedPhone}: ${otp}`);
+    console.log(`📤 SMS API response [${smsResponse.status}]: ${smsData}`);
     
-    res.json({ success: true, message: 'OTP sent successfully' });
+    res.json({ 
+      success: true, 
+      message: 'OTP sent successfully',
+      smsApiStatus: smsResponse.status,
+      smsApiData: smsData
+    });
   } catch (error) {
-    console.error('Error sending OTP:', error);
-    res.status(500).json({ error: 'Failed to send OTP' });
+    console.error('Error sending OTP:', error?.response?.data || error.message || error);
+    res.status(500).json({ 
+      error: 'Failed to send OTP',
+      details: error?.response?.data || error.message || 'Unknown error'
+    });
   }
 });
 
