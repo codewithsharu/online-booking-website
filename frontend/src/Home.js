@@ -13,28 +13,64 @@ function Home() {
   useEffect(() => {
     const getUser = async () => {
       const token = localStorage.getItem('token');
-      if (!token) {
+      const phone = localStorage.getItem('phone');
+
+      // If no token or phone, redirect to login
+      if (!token || !phone) {
+        console.log('❌ No valid session found, redirecting to login');
         window.location.href = '/login';
         return;
       }
 
       try {
+        console.log('📱 Fetching user data with phone:', phone);
         const res = await fetch(`${API_URL}/user`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
+        
+        // If unauthorized, clear storage and redirect
+        if (res.status === 401 || res.status === 403) {
+          console.log('❌ Unauthorized, clearing session');
+          localStorage.clear();
+          window.location.href = '/login';
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
         const data = await res.json();
+        console.log('✅ User data received:', data);
+        
+        // Verify user exists
+        if (!data || !data.phone) {
+          console.log('❌ User data invalid, redirecting to login');
+          localStorage.clear();
+          window.location.href = '/login';
+          return;
+        }
+
         setUser(data);
         
         // If user doesn't have name, ask for it
         if (!data.hasName && !data.name) {
+          console.log('📝 User needs to enter name');
           setAskingName(true);
         } else {
           // Show welcome back for returning users
+          console.log('👋 Welcoming returning user:', data.name);
           setShowWelcomeBack(true);
           setTimeout(() => setShowWelcomeBack(false), 3000);
         }
       } catch (error) {
-        console.error('Error:', error);
+        console.error('❌ Error fetching user:', error);
+        // On error, clear storage and redirect to login
+        localStorage.clear();
+        window.location.href = '/login';
       }
     };
 
@@ -48,9 +84,15 @@ function Home() {
       return;
     }
 
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setMessage('Session expired. Please login again.');
+      window.location.href = '/login';
+      return;
+    }
+
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch(`${API_URL}/save-name`, {
         method: 'POST',
         headers: {
@@ -60,16 +102,27 @@ function Home() {
         body: JSON.stringify({ name: name.trim() })
       });
 
+      // If unauthorized, redirect to login
+      if (res.status === 401 || res.status === 403) {
+        console.log('❌ Session expired');
+        localStorage.clear();
+        window.location.href = '/login';
+        return;
+      }
+
       if (res.ok) {
         setUser({ ...user, name: name.trim(), hasName: true });
         setAskingName(false);
         setMessage('');
+        console.log('✅ Name saved successfully');
       } else {
         const data = await res.json();
         setMessage(data.error || 'Failed to save name');
+        console.error('❌ Error saving name:', data);
       }
     } catch (error) {
       setMessage('Network error: ' + error.message);
+      console.error('❌ Network error:', error);
     } finally {
       setLoading(false);
     }

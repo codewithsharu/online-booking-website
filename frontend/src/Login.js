@@ -116,6 +116,7 @@ function Login() {
       if (res.ok) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('role', data.role);
+        localStorage.setItem('phone', '91' + phone); // Save phone for session verification
         setStep('verified');
         setTimeout(() => {
           // Redirect based on role

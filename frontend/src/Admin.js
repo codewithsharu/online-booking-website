@@ -10,9 +10,12 @@ function Admin() {
     const loadUsers = async () => {
       const token = localStorage.getItem('token');
       const role = localStorage.getItem('role');
+      const phone = localStorage.getItem('phone');
 
-      if (!token || role !== 'admin') {
-        window.location.href = '/login';
+      // Verify admin is logged in
+      if (!token || role !== 'admin' || !phone) {
+        console.log('❌ Not authorized to access admin panel');
+        window.location.href = '/admin-login';
         return;
       }
 
@@ -20,10 +23,19 @@ function Admin() {
         const res = await fetch(`${API_URL}/admin`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+
+        // If unauthorized, redirect
+        if (res.status === 401 || res.status === 403) {
+          console.log('❌ Admin session expired');
+          localStorage.clear();
+          window.location.href = '/admin-login';
+          return;
+        }
+
         const data = await res.json();
         setUsers(data.data);
       } catch (error) {
-        console.error('Error:', error);
+        console.error('❌ Error loading admin data:', error);
       } finally {
         setLoading(false);
       }

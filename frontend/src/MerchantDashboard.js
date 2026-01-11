@@ -30,6 +30,14 @@ function MerchantDashboard() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
+      const role = localStorage.getItem('role');
+      
+      // Verify user is logged in and is a merchant
+      if (!token || role !== 'merchant') {
+        console.log('❌ Not authorized to access merchant dashboard');
+        window.location.href = '/login';
+        return;
+      }
       
       // Fetch merchant status
       const statusResponse = await fetch(`${API_URL}/merchant/status`, {
@@ -37,6 +45,15 @@ function MerchantDashboard() {
           'Authorization': `Bearer ${token}`
         }
       });
+
+      // If unauthorized, clear and redirect
+      if (statusResponse.status === 401 || statusResponse.status === 403) {
+        console.log('❌ Session expired or unauthorized');
+        localStorage.clear();
+        window.location.href = '/login';
+        return;
+      }
+      
       const statusData = await statusResponse.json();
       setMerchantData(statusData);
 

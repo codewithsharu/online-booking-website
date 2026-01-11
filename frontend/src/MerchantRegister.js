@@ -24,6 +24,23 @@ function MerchantRegister() {
   });
   const [submitted, setSubmitted] = useState(false);
 
+  // Check if user is already logged in (redirect them)
+  useEffect(() => {
+    const loggedInToken = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+
+    if (loggedInToken) {
+      console.log('✅ User already logged in, redirecting');
+      // If they're already a merchant, go to merchant dashboard
+      if (role === 'merchant') {
+        window.location.href = '/merchant-dashboard';
+      } else {
+        // Regular users can't access merchant register directly
+        window.location.href = '/home';
+      }
+    }
+  }, []);
+
   // Cooldown timer
   useEffect(() => {
     if (cooldown && remaining > 0) {

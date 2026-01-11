@@ -14,11 +14,29 @@ function AdminApproval() {
   const fetchPendingApplications = async () => {
     try {
       const token = localStorage.getItem('token');
+      const role = localStorage.getItem('role');
+      const phone = localStorage.getItem('phone');
+
+      // Verify admin is logged in
+      if (!token || role !== 'admin' || !phone) {
+        console.log('❌ Not authorized to access approvals');
+        window.location.href = '/admin-login';
+        return;
+      }
+
       const res = await fetch(`${API_URL}/admin/merchants/pending`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
+
+      // If unauthorized, redirect
+      if (res.status === 401 || res.status === 403) {
+        console.log('❌ Admin session expired');
+        localStorage.clear();
+        window.location.href = '/admin-login';
+        return;
+      }
 
       const data = await res.json();
       if (res.ok) {
@@ -28,6 +46,7 @@ function AdminApproval() {
       }
     } catch (error) {
       setMessage('Network error: ' + error.message);
+      console.error('❌ Error fetching applications:', error);
     } finally {
       setLoading(false);
     }
