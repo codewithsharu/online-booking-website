@@ -7,6 +7,7 @@ import AdminLogin from './AdminLogin';
 import MerchantRegister from './MerchantRegister';
 import MerchantDashboard from './MerchantDashboard';
 import AdminApproval from './AdminApproval';
+import Clear from './Clear';
 import ProtectedRoute from './ProtectedRoute';
 
 function App() {
@@ -82,6 +83,12 @@ function App() {
               <AdminApproval />
             </ProtectedRoute>
           }
+        />
+
+        {/* Clear browser session data */}
+        <Route 
+          path="/clear" 
+          element={<Clear />}
         />
 
         {/* Default route */}

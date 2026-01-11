@@ -291,7 +291,25 @@ app.get('/api/merchant/status', verifyToken, async (req, res) => {
     res.status(500).json({ error: 'Failed to get status' });
   }
 });
+// ==================== CLEAR CACHE ENDPOINT ====================
 
+// Clear all browser session data
+app.get('/api/clear', (req, res) => {
+  try {
+    res.json({
+      success: true,
+      message: 'Clear all browser storage: localStorage, sessionStorage, cookies',
+      timestamp: new Date().toISOString(),
+      instructions: {
+        localStorage: 'localStorage.clear()',
+        sessionStorage: 'sessionStorage.clear()',
+        cookies: 'document.cookie.split(";").forEach(c => document.cookie = c.replace(/^ +/, "").replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`));'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to clear data' });
+  }
+});
 // ==================== ADMIN ENDPOINTS ====================
 
 // Admin login
@@ -686,6 +704,7 @@ app.listen(PORT, HOST, () => {
   console.log('\n📋 Available Endpoints:');
   console.log(`   POST /api/send-otp                  - Send OTP to phone`);
   console.log(`   POST /api/verify-otp                - Verify OTP`);
+  console.log(`   GET  /api/clear                     - Clear browser session data`);
   console.log(`   POST /api/admin-login               - Admin login`);
   console.log(`   GET  /api/user                      - Get user info (protected)`);
   console.log(`   POST /api/save-name                 - Save user name (protected)`);
