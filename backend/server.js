@@ -4,7 +4,14 @@ const axios = require('axios');
 const cors = require('cors');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
+const mongoose = require('mongoose');
 require('dotenv').config();
+
+// Import Models
+const User = require('./models/User');
+const MerchantApplication = require('./models/MerchantApplication');
+const MerchantProfile = require('./models/MerchantProfile');
+const OTPService = require('./models/OTPService');
 
 const app = express();
 app.use(express.json());
@@ -24,224 +31,237 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
-// Environment Variables with fallbacks
+// Environment Variables
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_change_in_production';
+const MONGODB_URI = process.env.MONGODB_URI;
 const SMS_API_URL = process.env.SMS_API_URL || 'http://cloud.smsindiahub.in/vendorsms/pushsms.aspx';
 const SMS_API_KEY = process.env.SMS_API_KEY || 'f1af4eb84ee84103bb7ea19cb9459ccf';
 const SMS_SENDER_ID = process.env.SMS_SENDER_ID || 'SMSHUB';
 const SMS_GWID = process.env.SMS_GWID || '2';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
-let otpStore = {};
-let users = {};
-let merchantApplications = {};
-let userNames = {};
-let merchantProfiles = {}; // Merchant ID -> Profile data
+// MongoDB Connection
+mongoose.connect(MONGODB_URI)
+.then(() => {
+  console.log('✅ Connected to MongoDB successfully');
+})
+.catch((error) => {
+  console.error('❌ MongoDB connection error:', error);
+  process.exit(1);
+});
+
+// MongoDB connection event listeners
+mongoose.connection.on('connected', () => {
+  console.log('📡 Mongoose connected to MongoDB');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('❌ Mongoose connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('📴 Mongoose disconnected from MongoDB');
+});
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  await mongoose.connection.close();
+  console.log('MongoDB connection closed through app termination');
+  process.exit(0);
+});
+
+// JWT Verification Middleware
+const verifyToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+    req.user = decoded;
+    next();
+  });
+};
+
+// ==================== OTP ENDPOINTS ====================
 
 // Send OTP
 app.post('/api/send-otp', async (req, res) => {
-  const timestamp = new Date().toISOString();
-  console.log(`\n[${timestamp}] ⏳ /api/send-otp request received`);
-  
   try {
     const { phone } = req.body;
-    console.log(`[${timestamp}] 📞 Phone received: ${phone}`);
     
-    if (!phone) {
-      console.log(`[${timestamp}] ❌ Phone is missing or empty`);
-      return res.status(400).json({ error: 'Phone number required' });
+    if (!phone || !/^\d{10}$/.test(phone)) {
+      return res.status(400).json({ error: 'Valid 10-digit phone number required' });
     }
-    
-    if (!/^\d{12}$/.test(phone)) {
-      console.log(`[${timestamp}] ❌ Phone format invalid (must be 12 digits with country code): ${phone}`);
-      return res.status(400).json({ error: 'Invalid phone format (expected 12 digits with 91)' });
-    }
-    
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore[phone] = otp;
-    console.log(`[${timestamp}] 🔐 OTP generated: ${otp} for phone ${phone}`);
+    OTPService.saveOTP(phone, otp);
+
+    const message = `Your OTP for login is: ${otp}. Valid for 5 minutes.`;
+    const smsUrl = `${SMS_API_URL}?user=shareenpan&password=Fgouter55&msisdn=${phone}&sid=${SMS_SENDER_ID}&msg=${encodeURIComponent(message)}&fl=0&gwid=${SMS_GWID}`;
+
+    await axios.get(smsUrl);
+    console.log(`📱 OTP sent to ${phone}: ${otp}`);
     
-    const msg = `Welcome to the xyz powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
-    const url = `${SMS_API_URL}?APIKey=${SMS_API_KEY}&msisdn=${phone}&sid=${SMS_SENDER_ID}&msg=${encodeURIComponent(msg)}&fl=0&gwid=${SMS_GWID}`;
-    
-    console.log(`[${timestamp}] 📧 Attempting SMS API call to: ${SMS_API_URL}`);
-    console.log(`[${timestamp}] 📋 Full URL: ${url}`);
-    
-    try {
-      const smsRes = await axios.get(url, { timeout: 8000 });
-      console.log(`[${timestamp}] ✅ SMS API Response Status: ${smsRes.status}`);
-      console.log(`[${timestamp}] 📧 SMS API Response Body:`, smsRes.data);
-      console.log(`[${timestamp}] ✅ OTP sent successfully to ${phone}`);
-      
-      return res.json({ success: true, message: 'OTP sent successfully', otp: otp });
-    } catch (smsError) {
-      console.log(`[${timestamp}] ⚠️ SMS API call failed: ${smsError.message}`);
-      console.log(`[${timestamp}] 📧 SMS Error Code: ${smsError.code}`);
-      console.log(`[${timestamp}] 📧 SMS Response Status: ${smsError.response?.status}`);
-      console.log(`[${timestamp}] 📧 SMS Response Data:`, smsError.response?.data);
-      console.log(`[${timestamp}] ⚠️ But OTP is stored in memory for verification: ${otp}`);
-      
-      // Even if SMS fails, OTP is stored, so we return success for testing
-      return res.json({ success: true, message: 'OTP generated (SMS delivery may have issues)', otp: otp, smsStatus: smsError.message });
-    }
+    res.json({ success: true, message: 'OTP sent successfully' });
   } catch (error) {
-    console.error(`[${timestamp}] ❌ Unexpected error in /api/send-otp:`, error.message);
-    console.error(`[${timestamp}] Stack:`, error.stack);
-    res.status(500).json({ error: 'Server error processing OTP request', details: error.message });
+    console.error('Error sending OTP:', error);
+    res.status(500).json({ error: 'Failed to send OTP' });
   }
 });
 
 // Verify OTP
-app.post('/api/verify-otp', (req, res) => {
-  const timestamp = new Date().toISOString();
-  console.log(`\n[${timestamp}] ⏳ /api/verify-otp request received`);
-  
+app.post('/api/verify-otp', async (req, res) => {
   try {
     const { phone, otp } = req.body;
-    console.log(`[${timestamp}] 📞 Phone: ${phone}, OTP: ${otp}`);
-    
+
     if (!phone || !otp) {
-      console.log(`[${timestamp}] ❌ Phone or OTP missing`);
       return res.status(400).json({ error: 'Phone and OTP required' });
     }
-    
-    const storedOtp = otpStore[phone];
-    console.log(`[${timestamp}] 🔍 Checking OTP - Stored: ${storedOtp}, Provided: ${otp}`);
-    
-    if (!storedOtp) {
-      console.log(`[${timestamp}] ❌ No OTP found for phone ${phone}. Did you call /api/send-otp first?`);
-      return res.status(400).json({ error: 'OTP not found. Request a new OTP first.' });
+
+    const isValid = OTPService.verifyOTP(phone, otp);
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
-    
-    if (storedOtp !== otp) {
-      console.log(`[${timestamp}] ❌ OTP mismatch - Expected: ${storedOtp}, Got: ${otp}`);
-      return res.status(400).json({ error: 'Invalid OTP' });
-    }
-    
-    console.log(`[${timestamp}] ✅ OTP verified successfully for ${phone}`);
-    
-    // Check if user exists and get their role
-    let existingUser = users[phone];
-    let role = 'user';
+
+    // Find or create user
+    let user = await User.findOne({ phone });
     let isFirstTime = false;
     
-    if (existingUser) {
-      role = existingUser.role;
-    } else {
-      users[phone] = { phone, role: 'user', verifiedAt: timestamp };
+    if (!user) {
+      user = await User.create({
+        phone,
+        role: 'user',
+        name: null
+      });
       isFirstTime = true;
+      console.log(`✨ New user created: ${phone}`);
     }
-    
-    const token = jwt.sign({ phone, role }, JWT_SECRET);
-    delete otpStore[phone];
-    
-    console.log(`[${timestamp}] ✅ User: ${phone}, Role: ${role}, First time: ${isFirstTime}`);
+
+    // Check if user has a name
+    const hasName = !!user.name;
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        phone: user.phone, 
+        role: user.role,
+        merchantId: user.merchantId 
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    console.log(`✅ Login successful: ${phone} (${user.role})`);
     res.json({ 
       success: true, 
       token, 
-      role, 
+      role: user.role,
       isFirstTime,
-      hasName: !!userNames[phone],
-      message: 'Phone verified successfully' 
+      hasName,
+      merchantId: user.merchantId
     });
   } catch (error) {
-    const timestamp = new Date().toISOString();
-    console.error(`[${timestamp}] ❌ Unexpected error in /api/verify-otp:`, error.message);
-    console.error(`[${timestamp}] Stack:`, error.stack);
-    res.status(500).json({ error: 'Server error verifying OTP', details: error.message });
+    console.error('Error verifying OTP:', error);
+    res.status(500).json({ error: 'Failed to verify OTP' });
   }
 });
 
-// Admin Login
-app.post('/api/admin-login', (req, res) => {
+// ==================== USER ENDPOINTS ====================
+
+// Get user info
+app.get('/api/user', verifyToken, async (req, res) => {
   try {
-    const { password } = req.body;
-    if (password === ADMIN_PASSWORD) {
-      const token = jwt.sign({ role: 'admin' }, JWT_SECRET);
-      res.json({ token, role: 'admin' });
-    } else {
-      res.status(400).json({ error: 'Invalid password' });
+    const user = await User.findOne({ phone: req.user.phone }).select('-__v');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
     }
+    res.json({ user });
   } catch (error) {
-    res.status(500).json({ error: 'Login failed' });
+    console.error('Error fetching user:', error);
+    res.status(500).json({ error: 'Failed to fetch user info' });
   }
-});
-
-// Verify JWT
-const verifyToken = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No token' });
-  
-  try {
-    req.user = jwt.verify(token, JWT_SECRET);
-    next();
-  } catch {
-    res.status(401).json({ error: 'Invalid token' });
-  }
-};
-
-// Get user
-app.get('/api/user', verifyToken, (req, res) => {
-  const user = users[req.user.phone] || { phone: req.user.phone, role: req.user.role };
-  const name = userNames[req.user.phone];
-  res.json({ 
-    phone: req.user.phone, 
-    role: req.user.role,
-    name: name,
-    hasName: !!name
-  });
 });
 
 // Save user name
-app.post('/api/save-name', verifyToken, (req, res) => {
+app.post('/api/save-name', verifyToken, async (req, res) => {
   try {
     const { name } = req.body;
-    if (!name) {
+    if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Name is required' });
     }
-    userNames[req.user.phone] = name;
+
+    const user = await User.findOneAndUpdate(
+      { phone: req.user.phone },
+      { name: name.trim(), updatedAt: Date.now() },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     console.log(`✅ Name saved for ${req.user.phone}: ${name}`);
-    res.json({ success: true, message: 'Name saved successfully' });
+    res.json({ success: true, message: 'Name saved successfully', user });
   } catch (error) {
+    console.error('Error saving name:', error);
     res.status(500).json({ error: 'Failed to save name' });
   }
 });
 
+// ==================== MERCHANT APPLICATION ENDPOINTS ====================
+
 // Submit merchant application
-app.post('/api/merchant/apply', verifyToken, (req, res) => {
+app.post('/api/merchant/apply', verifyToken, async (req, res) => {
   try {
     const { ownerName, email, businessName, businessCategory, businessDescription, pincode, area, fullAddress } = req.body;
     
     if (!ownerName || !businessName || !businessCategory || !pincode || !area || !fullAddress) {
       return res.status(400).json({ error: 'All required fields must be filled' });
     }
-    
-    const phone = req.user.phone;
+
+    // Check if user already has an application
+    const existingApp = await MerchantApplication.findOne({ phone: req.user.phone, isActive: true });
+    if (existingApp) {
+      return res.status(400).json({ 
+        error: 'You already have an active application',
+        status: existingApp.status 
+      });
+    }
+
     const applicationId = Date.now().toString();
     
-    merchantApplications[applicationId] = {
-      id: applicationId,
-      phone,
-      ownerName,
-      email: email || '',
-      businessName,
+    const application = await MerchantApplication.create({
+      applicationId,
+      phone: req.user.phone,
+      ownerName: ownerName.trim(),
+      email: email?.trim() || '',
+      businessName: businessName.trim(),
       businessCategory,
-      businessDescription: businessDescription || '',
-      pincode,
-      area,
-      fullAddress,
-      status: 'pending', // pending, approved, rejected
-      appliedAt: new Date().toISOString(),
-      approvedAt: null,
-      rejectedAt: null,
-      rejectionReason: null,
-      merchantId: null
-    };
-    
-    console.log(`📝 Merchant application submitted: ${applicationId} by ${phone}`);
-    res.json({ success: true, message: 'Application submitted successfully', applicationId });
+      businessDescription: businessDescription?.trim() || '',
+      location: {
+        pincode,
+        area: area.trim(),
+        fullAddress: fullAddress.trim()
+      },
+      status: 'pending',
+      appliedAt: new Date()
+    });
+
+    console.log(`📝 Merchant application submitted: ${applicationId} by ${req.user.phone}`);
+    res.json({ 
+      success: true, 
+      message: 'Application submitted successfully', 
+      applicationId,
+      application 
+    });
   } catch (error) {
     console.error('Error submitting merchant application:', error);
     res.status(500).json({ error: 'Failed to submit application' });
@@ -249,10 +269,12 @@ app.post('/api/merchant/apply', verifyToken, (req, res) => {
 });
 
 // Get merchant application status
-app.get('/api/merchant/status', verifyToken, (req, res) => {
+app.get('/api/merchant/status', verifyToken, async (req, res) => {
   try {
-    const phone = req.user.phone;
-    const application = Object.values(merchantApplications).find(app => app.phone === phone);
+    const application = await MerchantApplication.findOne({ 
+      phone: req.user.phone,
+      isActive: true 
+    }).select('-__v').lean();
     
     if (!application) {
       return res.json({ hasApplication: false });
@@ -265,93 +287,160 @@ app.get('/api/merchant/status', verifyToken, (req, res) => {
       application 
     });
   } catch (error) {
+    console.error('Error fetching merchant status:', error);
     res.status(500).json({ error: 'Failed to get status' });
   }
 });
 
-// Admin: Get pending merchant applications
-app.get('/api/admin/merchants/pending', verifyToken, (req, res) => {
+// ==================== ADMIN ENDPOINTS ====================
+
+// Admin login
+app.post('/api/admin-login', (req, res) => {
+  try {
+    const { password } = req.body;
+    
+    if (password !== ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Invalid admin password' });
+    }
+
+    const token = jwt.sign({ phone: 'admin', role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
+    
+    console.log('✅ Admin logged in');
+    res.json({ success: true, token, role: 'admin' });
+  } catch (error) {
+    console.error('Admin login error:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Get pending merchant applications
+app.get('/api/admin/merchants/pending', verifyToken, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Unauthorized' });
   }
   
   try {
-    const pending = Object.values(merchantApplications).filter(app => app.status === 'pending');
+    const pending = await MerchantApplication.find({ 
+      status: 'pending',
+      isActive: true 
+    })
+    .sort({ appliedAt: -1 })
+    .select('-__v')
+    .lean();
+
     res.json({ applications: pending });
   } catch (error) {
+    console.error('Error fetching pending applications:', error);
     res.status(500).json({ error: 'Failed to fetch applications' });
   }
 });
 
-// Admin: Approve merchant application
-app.post('/api/admin/merchants/approve', verifyToken, (req, res) => {
+// Approve merchant application
+app.post('/api/admin/merchants/approve', verifyToken, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Unauthorized' });
   }
   
   try {
     const { applicationId } = req.body;
-    const application = merchantApplications[applicationId];
     
+    const application = await MerchantApplication.findOne({ applicationId });
     if (!application) {
       return res.status(404).json({ error: 'Application not found' });
     }
-    
+
+    if (application.status === 'approved') {
+      return res.status(400).json({ error: 'Application already approved' });
+    }
+
     // Generate merchant ID
     const merchantId = 'MER' + Date.now().toString().slice(-8);
     
     // Update application
     application.status = 'approved';
     application.merchantId = merchantId;
-    application.approvedAt = new Date().toISOString();
-    
+    application.approvedAt = new Date();
+    application.processedBy = req.user.phone;
+    await application.save();
+
     // Update user role
-    if (users[application.phone]) {
-      users[application.phone].role = 'merchant';
-      users[application.phone].merchantId = merchantId;
-    }
-    
+    await User.findOneAndUpdate(
+      { phone: application.phone },
+      { 
+        role: 'merchant',
+        merchantId,
+        updatedAt: Date.now()
+      }
+    );
+
+    // Create merchant profile with application data
+    await MerchantProfile.create({
+      merchantId,
+      phone: application.phone,
+      applicationId: application.applicationId,
+      shopName: application.businessName,
+      shopCategory: application.businessCategory,
+      shopDescription: application.businessDescription,
+      location: {
+        pincode: application.location.pincode,
+        area: application.location.area,
+        fullAddress: application.location.fullAddress
+      },
+      workingHours: {
+        openingTime: '09:00',
+        closingTime: '18:00',
+        workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+      },
+      slotDuration: 30,
+      services: [],
+      contact: {
+        phone: application.phone,
+        email: application.email
+      }
+    });
+
     console.log(`✅ Approved merchant application ${applicationId}, assigned ID: ${merchantId}`);
-    res.json({ success: true, message: 'Application approved', merchantId });
+    res.json({ 
+      success: true, 
+      message: 'Application approved', 
+      merchantId,
+      application 
+    });
   } catch (error) {
     console.error('Error approving application:', error);
     res.status(500).json({ error: 'Failed to approve application' });
   }
 });
 
-// Admin: Reject merchant application
-app.post('/api/admin/merchants/reject', verifyToken, (req, res) => {
+// Reject merchant application
+app.post('/api/admin/merchants/reject', verifyToken, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Unauthorized' });
   }
   
   try {
     const { applicationId, reason } = req.body;
-    const application = merchantApplications[applicationId];
     
+    const application = await MerchantApplication.findOne({ applicationId });
     if (!application) {
       return res.status(404).json({ error: 'Application not found' });
     }
-    
+
     application.status = 'rejected';
-    application.rejectedAt = new Date().toISOString();
-    application.rejectedAt = new Date().toISOString();
+    application.rejectedAt = new Date();
     application.rejectionReason = reason || 'Not specified';
-    
+    application.processedBy = req.user.phone;
+    await application.save();
+
     console.log(`❌ Rejected merchant application ${applicationId}`);
     res.json({ success: true, message: 'Application rejected' });
   } catch (error) {
+    console.error('Error rejecting application:', error);
     res.status(500).json({ error: 'Failed to reject application' });
   }
 });
 
-// Admin test page
-app.get('/api/admin', verifyToken, (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Unauthorized' });
-  }
-  res.json({ message: 'Admin page', data: users });
-});
+// ==================== MERCHANT PROFILE ENDPOINTS ====================
 
 // Upload shop image to Cloudinary
 app.post('/api/merchant/upload-image', verifyToken, upload.single('image'), async (req, res) => {
@@ -364,20 +453,12 @@ app.post('/api/merchant/upload-image', verifyToken, upload.single('image'), asyn
       return res.status(400).json({ error: 'No image file provided' });
     }
 
-    // Get merchant ID from merchantApplications
-    const phone = req.user.phone;
-    const application = Object.values(merchantApplications).find(app => app.phone === phone && app.status === 'approved');
-    
-    if (!application || !application.merchantId) {
-      return res.status(400).json({ error: 'Merchant ID not found. Please ensure your application is approved.' });
-    }
-
-    // Upload to Cloudinary using upload_stream
+    // Upload to Cloudinary
     const uploadPromise = new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: 'merchant-shops',
-          public_id: `shop_${application.merchantId}_${Date.now()}`,
+          public_id: `shop_${req.user.merchantId}_${Date.now()}`,
           resource_type: 'image'
         },
         (error, result) => {
@@ -389,7 +470,7 @@ app.post('/api/merchant/upload-image', verifyToken, upload.single('image'), asyn
     });
 
     const result = await uploadPromise;
-    console.log(`✅ Image uploaded for merchant ${application.merchantId}: ${result.secure_url}`);
+    console.log(`✅ Image uploaded for merchant ${req.user.merchantId}: ${result.secure_url}`);
     
     res.json({ 
       success: true, 
@@ -403,52 +484,72 @@ app.post('/api/merchant/upload-image', verifyToken, upload.single('image'), asyn
 });
 
 // Create or update merchant profile
-app.post('/api/merchant/profile', verifyToken, (req, res) => {
+app.post('/api/merchant/profile', verifyToken, async (req, res) => {
   try {
     if (req.user.role !== 'merchant') {
       return res.status(403).json({ error: 'Only merchants can manage profiles' });
     }
 
-    const { shopName, shopCategory, pincode, area, fullAddress, openingTime, closingTime, slotDuration, services, shopImage } = req.body;
+    const { 
+      shopName, shopCategory, shopDescription, shopImage,
+      pincode, area, fullAddress, city, state,
+      openingTime, closingTime, workingDays,
+      slotDuration, advanceBookingDays, simultaneousBookings,
+      services, contact, socialMedia, tags
+    } = req.body;
     
     // Validate required fields
     if (!shopName || !shopCategory || !pincode || !area || !fullAddress || !openingTime || !closingTime || !slotDuration) {
       return res.status(400).json({ error: 'All required fields must be filled' });
     }
 
-    // Get merchant ID
-    const phone = req.user.phone;
-    const application = Object.values(merchantApplications).find(app => app.phone === phone && app.status === 'approved');
-    
-    if (!application || !application.merchantId) {
-      return res.status(400).json({ error: 'Merchant ID not found. Please ensure your application is approved.' });
-    }
+    // Find or update profile
+    let profile = await MerchantProfile.findOne({ merchantId: req.user.merchantId });
 
-    const merchantId = application.merchantId;
-    
-    merchantProfiles[merchantId] = {
-      merchantId,
-      phone,
-      shopName,
-      shopCategory,
-      location: {
+    if (profile) {
+      // Update existing profile
+      profile.shopName = shopName.trim();
+      profile.shopCategory = shopCategory;
+      profile.shopDescription = shopDescription?.trim();
+      profile.shopImage = shopImage;
+      
+      profile.location = {
         pincode,
-        area,
-        fullAddress
-      },
-      workingHours: {
+        area: area.trim(),
+        fullAddress: fullAddress.trim(),
+        city: city?.trim(),
+        state: state?.trim()
+      };
+      
+      profile.workingHours = {
         openingTime,
-        closingTime
-      },
-      slotDuration: parseInt(slotDuration),
-      services: services || [],
-      shopImage: shopImage || null,
-      updatedAt: new Date().toISOString(),
-      createdAt: merchantProfiles[merchantId]?.createdAt || new Date().toISOString()
-    };
+        closingTime,
+        workingDays: workingDays || profile.workingHours.workingDays
+      };
+      
+      profile.slotDuration = parseInt(slotDuration);
+      profile.advanceBookingDays = advanceBookingDays || profile.advanceBookingDays;
+      profile.simultaneousBookings = simultaneousBookings || profile.simultaneousBookings;
+      
+      if (services) profile.services = services;
+      if (contact) profile.contact = { ...profile.contact, ...contact };
+      if (socialMedia) profile.socialMedia = { ...profile.socialMedia, ...socialMedia };
+      if (tags) profile.tags = tags;
+      
+      profile.updatedAt = Date.now();
+      await profile.save();
+
+      console.log(`✅ Profile updated for merchant ${req.user.merchantId}`);
+    } else {
+      // This shouldn't happen as profile is created on approval, but handle it
+      return res.status(404).json({ error: 'Profile not found. Please contact support.' });
+    }
     
-    console.log(`✅ Profile ${merchantProfiles[merchantId].createdAt === merchantProfiles[merchantId].updatedAt ? 'created' : 'updated'} for merchant ${merchantId}`);
-    res.json({ success: true, message: 'Profile saved successfully', profile: merchantProfiles[merchantId] });
+    res.json({ 
+      success: true, 
+      message: 'Profile saved successfully', 
+      profile 
+    });
   } catch (error) {
     console.error('Error saving merchant profile:', error);
     res.status(500).json({ error: 'Failed to save profile' });
@@ -456,23 +557,19 @@ app.post('/api/merchant/profile', verifyToken, (req, res) => {
 });
 
 // Get own merchant profile
-app.get('/api/merchant/profile', verifyToken, (req, res) => {
+app.get('/api/merchant/profile', verifyToken, async (req, res) => {
   try {
     if (req.user.role !== 'merchant') {
       return res.status(403).json({ error: 'Only merchants can access profiles' });
     }
 
-    const phone = req.user.phone;
-    const application = Object.values(merchantApplications).find(app => app.phone === phone && app.status === 'approved');
-    
-    if (!application || !application.merchantId) {
-      return res.status(400).json({ error: 'Merchant ID not found' });
-    }
-
-    const profile = merchantProfiles[application.merchantId];
+    const profile = await MerchantProfile.findOne({ 
+      merchantId: req.user.merchantId,
+      isActive: true 
+    }).select('-__v').lean();
     
     if (!profile) {
-      return res.json({ hasProfile: false, merchantId: application.merchantId });
+      return res.json({ hasProfile: false, merchantId: req.user.merchantId });
     }
     
     res.json({ hasProfile: true, profile });
@@ -483,10 +580,16 @@ app.get('/api/merchant/profile', verifyToken, (req, res) => {
 });
 
 // Get merchant profile by ID (public)
-app.get('/api/merchant/profile/:merchantId', (req, res) => {
+app.get('/api/merchant/profile/:merchantId', async (req, res) => {
   try {
     const { merchantId } = req.params;
-    const profile = merchantProfiles[merchantId];
+    
+    const profile = await MerchantProfile.findOne({ 
+      merchantId,
+      isActive: true 
+    })
+    .select('-__v -createdAt -updatedAt')
+    .lean();
     
     if (!profile) {
       return res.status(404).json({ error: 'Merchant profile not found' });
@@ -499,6 +602,73 @@ app.get('/api/merchant/profile/:merchantId', (req, res) => {
   }
 });
 
+// Search merchants (public)
+app.get('/api/merchants/search', async (req, res) => {
+  try {
+    const { category, pincode, area, query, page = 1, limit = 20 } = req.query;
+    
+    let filter = { isActive: true };
+    
+    if (category) filter.shopCategory = category;
+    if (pincode) filter['location.pincode'] = pincode;
+    if (area) filter['location.area'] = new RegExp(area, 'i');
+    if (query) {
+      filter.$or = [
+        { shopName: new RegExp(query, 'i') },
+        { shopDescription: new RegExp(query, 'i') },
+        { tags: new RegExp(query, 'i') }
+      ];
+    }
+
+    const merchants = await MerchantProfile.find(filter)
+      .select('merchantId shopName shopCategory shopImage location.area location.pincode stats.rating stats.reviewCount workingHours isFeatured')
+      .sort({ isFeatured: -1, 'stats.rating': -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await MerchantProfile.countDocuments(filter);
+
+    res.json({ 
+      merchants,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error searching merchants:', error);
+    res.status(500).json({ error: 'Failed to search merchants' });
+  }
+});
+
+// Admin test page
+app.get('/api/admin', verifyToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  
+  try {
+    const userCount = await User.countDocuments();
+    const merchantCount = await User.countDocuments({ role: 'merchant' });
+    const pendingCount = await MerchantApplication.countDocuments({ status: 'pending' });
+    
+    res.json({ 
+      message: 'Admin dashboard',
+      stats: {
+        totalUsers: userCount,
+        totalMerchants: merchantCount,
+        pendingApplications: pendingCount
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching admin stats:', error);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
+// Start server
 app.listen(PORT, HOST, () => {
   console.log('\n' + '═'.repeat(70));
   console.log('🚀 SERVER STARTED SUCCESSFULLY');
@@ -509,6 +679,7 @@ app.listen(PORT, HOST, () => {
   console.log(`📧 SMS API:         ${SMS_API_URL}`);
   console.log(`🔑 SMS API Key:     ${SMS_API_KEY.substring(0, 10)}...`);
   console.log(`☁️  Cloudinary:      ${process.env.CLOUDINARY_CLOUD_NAME || 'Not configured'}`);
+  console.log(`🗄️  MongoDB:         ${MONGODB_URI ? '✅ Connected' : '❌ Not configured'}`);
   console.log(`👤 Admin Password:  ${ADMIN_PASSWORD === 'admin123' ? '⚠️  DEFAULT (Change in production!)' : '✅ Custom'}`);
   console.log(`⏰ Started at:      ${new Date().toISOString()}`);
   console.log('═'.repeat(70));
@@ -523,6 +694,7 @@ app.listen(PORT, HOST, () => {
   console.log(`   POST /api/merchant/profile          - Create/update merchant profile (merchant)`);
   console.log(`   GET  /api/merchant/profile          - Get own merchant profile (merchant)`);
   console.log(`   GET  /api/merchant/profile/:id      - Get merchant profile by ID (public)`);
+  console.log(`   GET  /api/merchants/search          - Search merchants (public)`);
   console.log(`   POST /api/merchant/upload-image     - Upload shop image (merchant)`);
   console.log(`   GET  /api/admin/merchants/pending   - Get pending applications (admin)`);
   console.log(`   POST /api/admin/merchants/approve   - Approve application (admin)`);
