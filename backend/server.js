@@ -20,6 +20,8 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
 let otpStore = {};
 let users = {};
+let merchantApplications = {};
+let userNames = {};
 
 // Send OTP
 app.post('/api/send-otp', async (req, res) => {
@@ -103,12 +105,30 @@ app.post('/api/verify-otp', (req, res) => {
     
     console.log(`[${timestamp}] ✅ OTP verified successfully for ${phone}`);
     
-    users[phone] = { phone, role: 'user', verifiedAt: timestamp };
-    const token = jwt.sign({ phone, role: 'user' }, JWT_SECRET);
+    // Check if user exists and get their role
+    let existingUser = users[phone];
+    let role = 'user';
+    let isFirstTime = false;
+    
+    if (existingUser) {
+      role = existingUser.role;
+    } else {
+      users[phone] = { phone, role: 'user', verifiedAt: timestamp };
+      isFirstTime = true;
+    }
+    
+    const token = jwt.sign({ phone, role }, JWT_SECRET);
     delete otpStore[phone];
     
-    console.log(`[${timestamp}] ✅ User registered: ${phone}, Token issued`);
-    res.json({ success: true, token, role: 'user', message: 'Phone verified successfully' });
+    console.log(`[${timestamp}] ✅ User: ${phone}, Role: ${role}, First time: ${isFirstTime}`);
+    res.json({ 
+      success: true, 
+      token, 
+      role, 
+      isFirstTime,
+      hasName: !!userNames[phone],
+      message: 'Phone verified successfully' 
+    });
   } catch (error) {
     const timestamp = new Date().toISOString();
     console.error(`[${timestamp}] ❌ Unexpected error in /api/verify-otp:`, error.message);
@@ -147,7 +167,161 @@ const verifyToken = (req, res, next) => {
 
 // Get user
 app.get('/api/user', verifyToken, (req, res) => {
-  res.json({ phone: req.user.phone, role: req.user.role });
+  const user = users[req.user.phone] || { phone: req.user.phone, role: req.user.role };
+  const name = userNames[req.user.phone];
+  res.json({ 
+    phone: req.user.phone, 
+    role: req.user.role,
+    name: name,
+    hasName: !!name
+  });
+});
+
+// Save user name
+app.post('/api/save-name', verifyToken, (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+    userNames[req.user.phone] = name;
+    console.log(`✅ Name saved for ${req.user.phone}: ${name}`);
+    res.json({ success: true, message: 'Name saved successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to save name' });
+  }
+});
+
+// Submit merchant application
+app.post('/api/merchant/apply', verifyToken, (req, res) => {
+  try {
+    const { ownerName, email, businessName, businessCategory, businessDescription, pincode, area, fullAddress } = req.body;
+    
+    if (!ownerName || !businessName || !businessCategory || !pincode || !area || !fullAddress) {
+      return res.status(400).json({ error: 'All required fields must be filled' });
+    }
+    
+    const phone = req.user.phone;
+    const applicationId = Date.now().toString();
+    
+    merchantApplications[applicationId] = {
+      id: applicationId,
+      phone,
+      ownerName,
+      email: email || '',
+      businessName,
+      businessCategory,
+      businessDescription: businessDescription || '',
+      pincode,
+      area,
+      fullAddress,
+      status: 'pending',
+      appliedAt: new Date().toISOString(),
+      merchantId: null
+    };
+    
+    console.log(`📝 Merchant application submitted: ${applicationId} by ${phone}`);
+    res.json({ success: true, message: 'Application submitted successfully', applicationId });
+  } catch (error) {
+    console.error('Error submitting merchant application:', error);
+    res.status(500).json({ error: 'Failed to submit application' });
+  }
+});
+
+// Get merchant application status
+app.get('/api/merchant/status', verifyToken, (req, res) => {
+  try {
+    const phone = req.user.phone;
+    const application = Object.values(merchantApplications).find(app => app.phone === phone);
+    
+    if (!application) {
+      return res.json({ hasApplication: false });
+    }
+    
+    res.json({ 
+      hasApplication: true, 
+      status: application.status,
+      merchantId: application.merchantId,
+      application 
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get status' });
+  }
+});
+
+// Admin: Get pending merchant applications
+app.get('/api/admin/merchants/pending', verifyToken, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  
+  try {
+    const pending = Object.values(merchantApplications).filter(app => app.status === 'pending');
+    res.json({ applications: pending });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch applications' });
+  }
+});
+
+// Admin: Approve merchant application
+app.post('/api/admin/merchants/approve', verifyToken, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  
+  try {
+    const { applicationId } = req.body;
+    const application = merchantApplications[applicationId];
+    
+    if (!application) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+    
+    // Generate merchant ID
+    const merchantId = 'MER' + Date.now().toString().slice(-8);
+    
+    // Update application
+    application.status = 'approved';
+    application.merchantId = merchantId;
+    application.approvedAt = new Date().toISOString();
+    
+    // Update user role
+    if (users[application.phone]) {
+      users[application.phone].role = 'merchant';
+      users[application.phone].merchantId = merchantId;
+    }
+    
+    console.log(`✅ Approved merchant application ${applicationId}, assigned ID: ${merchantId}`);
+    res.json({ success: true, message: 'Application approved', merchantId });
+  } catch (error) {
+    console.error('Error approving application:', error);
+    res.status(500).json({ error: 'Failed to approve application' });
+  }
+});
+
+// Admin: Reject merchant application
+app.post('/api/admin/merchants/reject', verifyToken, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  
+  try {
+    const { applicationId, reason } = req.body;
+    const application = merchantApplications[applicationId];
+    
+    if (!application) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+    
+    application.status = 'rejected';
+    application.rejectedAt = new Date().toISOString();
+    application.rejectionReason = reason || 'Not specified';
+    
+    console.log(`❌ Rejected merchant application ${applicationId}`);
+    res.json({ success: true, message: 'Application rejected' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reject application' });
+  }
 });
 
 // Admin test page
@@ -171,10 +345,16 @@ app.listen(PORT, HOST, () => {
   console.log(`⏰ Started at:      ${new Date().toISOString()}`);
   console.log('═'.repeat(70));
   console.log('\n📋 Available Endpoints:');
-  console.log(`   POST /api/send-otp      - Send OTP to phone`);
-  console.log(`   POST /api/verify-otp    - Verify OTP`);
-  console.log(`   POST /api/admin-login   - Admin login`);
-  console.log(`   GET  /api/user          - Get user info (protected)`);
-  console.log(`   GET  /api/admin         - Admin dashboard (protected)`);
+  console.log(`   POST /api/send-otp                  - Send OTP to phone`);
+  console.log(`   POST /api/verify-otp                - Verify OTP`);
+  console.log(`   POST /api/admin-login               - Admin login`);
+  console.log(`   GET  /api/user                      - Get user info (protected)`);
+  console.log(`   POST /api/save-name                 - Save user name (protected)`);
+  console.log(`   POST /api/merchant/apply            - Submit merchant application (protected)`);
+  console.log(`   GET  /api/merchant/status           - Get merchant application status (protected)`);
+  console.log(`   GET  /api/admin/merchants/pending   - Get pending applications (admin)`);
+  console.log(`   POST /api/admin/merchants/approve   - Approve application (admin)`);
+  console.log(`   POST /api/admin/merchants/reject    - Reject application (admin)`);
+  console.log(`   GET  /api/admin                     - Admin dashboard (protected)`);
   console.log('═'.repeat(70) + '\n');
 });

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
 function Admin() {
   const [users, setUsers] = useState({});
@@ -37,11 +37,32 @@ function Admin() {
     window.location.href = '/admin-login';
   };
 
+  const goToApprovals = () => {
+    window.location.href = '/admin/approvals';
+  };
+
   if (loading) return <div className="container"><p>Loading...</p></div>;
 
   return (
     <div className="container">
       <h1>Admin Panel</h1>
+      
+      <button 
+        onClick={goToApprovals}
+        style={{
+          padding: '12px 24px',
+          marginBottom: '20px',
+          backgroundColor: '#10b981',
+          color: 'white',
+          border: 'none',
+          borderRadius: '5px',
+          cursor: 'pointer',
+          fontSize: '16px'
+        }}
+      >
+        Merchant Approvals
+      </button>
+      
       <h2>Registered Users</h2>
       
       {Object.keys(users).length === 0 ? (

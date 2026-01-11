@@ -4,28 +4,56 @@ import Login from './Login';
 import Home from './Home';
 import Admin from './Admin';
 import AdminLogin from './AdminLogin';
+import MerchantRegister from './MerchantRegister';
+import MerchantDashboard from './MerchantDashboard';
+import AdminApproval from './AdminApproval';
 import ProtectedRoute from './ProtectedRoute';
 
 function App() {
+  const token = localStorage.getItem('token');
+  const role = localStorage.getItem('role');
+
   return (
     <Router>
       <Routes>
-        {/* Login route - if already logged in, redirect to home */}
+        {/* Login route */}
         <Route 
           path="/login" 
           element={
-            localStorage.getItem('token') && localStorage.getItem('role') === 'user' 
-              ? <Navigate to="/home" />
+            token 
+              ? role === 'admin' ? <Navigate to="/admin" />
+              : role === 'merchant' ? <Navigate to="/merchant-dashboard" />
+              : <Navigate to="/home" />
               : <Login />
           }
         />
 
-        {/* Home route - protected for users */}
+        {/* Home route - for regular users */}
         <Route 
           path="/home" 
           element={
-            <ProtectedRoute requiredRole="user">
+            <ProtectedRoute>
               <Home />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Merchant registration */}
+        <Route 
+          path="/merchant-register" 
+          element={
+            <ProtectedRoute>
+              <MerchantRegister />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Merchant dashboard */}
+        <Route 
+          path="/merchant-dashboard" 
+          element={
+            <ProtectedRoute requiredRole="merchant">
+              <MerchantDashboard />
             </ProtectedRoute>
           }
         />
@@ -34,18 +62,28 @@ function App() {
         <Route 
           path="/admin-login" 
           element={
-            localStorage.getItem('token') && localStorage.getItem('role') === 'admin'
+            token && role === 'admin'
               ? <Navigate to="/admin" />
               : <AdminLogin />
           }
         />
 
-        {/* Admin panel - protected for admins */}
+        {/* Admin panel */}
         <Route 
           path="/admin" 
           element={
             <ProtectedRoute requiredRole="admin">
               <Admin />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin approval page */}
+        <Route 
+          path="/admin/approvals" 
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminApproval />
             </ProtectedRoute>
           }
         />

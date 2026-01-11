@@ -118,7 +118,14 @@ function Login() {
         localStorage.setItem('role', data.role);
         setStep('verified');
         setTimeout(() => {
-          window.location.href = '/home';
+          // Redirect based on role
+          if (data.role === 'merchant') {
+            window.location.href = '/merchant-dashboard';
+          } else if (data.role === 'admin') {
+            window.location.href = '/admin';
+          } else {
+            window.location.href = '/home';
+          }
         }, 2000);
       } else {
         setMessage(data.error || `Invalid OTP (status ${res.status})`);
