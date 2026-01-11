@@ -38,14 +38,10 @@ function App() {
           }
         />
 
-        {/* Merchant registration */}
+        {/* Merchant registration - No authentication required */}
         <Route 
           path="/merchant-register" 
-          element={
-            <ProtectedRoute>
-              <MerchantRegister />
-            </ProtectedRoute>
-          }
+          element={<MerchantRegister />}
         />
 
         {/* Merchant dashboard */}

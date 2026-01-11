@@ -1,8 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
 function MerchantRegister() {
+  const [step, setStep] = useState('phone'); // phone, otp, form
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [token, setToken] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(false);
+  const [remaining, setRemaining] = useState(0);
+  const [message, setMessage] = useState('');
   const [formData, setFormData] = useState({
     ownerName: '',
     email: '',
@@ -13,9 +22,108 @@ function MerchantRegister() {
     area: '',
     fullAddress: ''
   });
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
   const [submitted, setSubmitted] = useState(false);
+
+  // Cooldown timer
+  useEffect(() => {
+    if (cooldown && remaining > 0) {
+      const t = setTimeout(() => setRemaining((s) => s - 1), 1000);
+      return () => clearTimeout(t);
+    }
+    if (remaining === 0) {
+      setCooldown(false);
+    }
+  }, [cooldown, remaining]);
+
+  const sendOTP = async () => {
+    if (!phone || phone.length !== 10) {
+      setMessage('Enter valid 10-digit phone number');
+      return;
+    }
+
+    setLoading(true);
+    setMessage('');
+    try {
+      const res = await fetch(`${API_URL}/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: '91' + phone })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setStep('otp');
+        setCooldown(true);
+        setRemaining(60);
+        if (data.otp) {
+          console.log('🔐 TEST OTP:', data.otp);
+        }
+      } else {
+        setMessage(data.error || 'Failed to send OTP');
+      }
+    } catch (error) {
+      setMessage('Network error: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resendOTP = async () => {
+    if (cooldown) return;
+    setResendLoading(true);
+    setMessage('');
+    try {
+      const res = await fetch(`${API_URL}/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: '91' + phone })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCooldown(true);
+        setRemaining(60);
+        if (data.otp) {
+          console.log('🔐 TEST OTP (resend):', data.otp);
+        }
+      } else {
+        setMessage(data.error || 'Failed to resend OTP');
+      }
+    } catch (error) {
+      setMessage('Network error: ' + error.message);
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  const verifyOTP = async () => {
+    if (!otp || otp.length !== 6) {
+      setMessage('Enter valid 6-digit OTP');
+      return;
+    }
+
+    setLoading(true);
+    setMessage('');
+    try {
+      const res = await fetch(`${API_URL}/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: '91' + phone, otp })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setToken(data.token);
+        setStep('form');
+        setMessage('');
+      } else {
+        setMessage(data.error || 'Invalid OTP');
+      }
+    } catch (error) {
+      setMessage('Network error: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -27,7 +135,6 @@ function MerchantRegister() {
     setMessage('');
 
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch(`${API_URL}/merchant/apply`, {
         method: 'POST',
         headers: {
@@ -52,6 +159,133 @@ function MerchantRegister() {
     }
   };
 
+  // Phone Step
+  if (step === 'phone') {
+    return (
+      <div style={{ padding: '20px', maxWidth: '500px', margin: '50px auto' }}>
+        <h1>Merchant Registration</h1>
+        <p>Enter your phone number to get started</p>
+
+        <label>
+          Mobile Number
+          <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+            <input
+              type="text"
+              value="+91"
+              disabled
+              style={{ width: '60px', padding: '8px', backgroundColor: '#f5f5f5' }}
+            />
+            <input
+              type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="Enter 10-digit number"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              onKeyPress={(e) => e.key === 'Enter' && sendOTP()}
+              style={{ flex: 1, padding: '8px' }}
+              autoFocus
+            />
+          </div>
+        </label>
+
+        {message && <p style={{ color: 'red', marginTop: '10px' }}>{message}</p>}
+
+        <button
+          onClick={sendOTP}
+          disabled={loading || phone.length !== 10}
+          style={{
+            width: '100%',
+            padding: '12px',
+            marginTop: '20px',
+            backgroundColor: '#667eea',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: loading || phone.length !== 10 ? 'not-allowed' : 'pointer',
+            fontSize: '16px',
+            opacity: loading || phone.length !== 10 ? 0.6 : 1
+          }}
+        >
+          {loading ? 'Sending OTP...' : 'Send OTP'}
+        </button>
+      </div>
+    );
+  }
+
+  // OTP Step
+  if (step === 'otp') {
+    return (
+      <div style={{ padding: '20px', maxWidth: '500px', margin: '50px auto' }}>
+        <h1>Verify OTP</h1>
+        <p>Enter 6-digit code sent to +91{phone}</p>
+
+        <input
+          type="tel"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          placeholder="000000"
+          value={otp}
+          onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          onKeyPress={(e) => e.key === 'Enter' && verifyOTP()}
+          style={{
+            width: '100%',
+            padding: '12px',
+            marginTop: '10px',
+            fontSize: '24px',
+            textAlign: 'center',
+            letterSpacing: '8px',
+            border: '2px solid #ddd',
+            borderRadius: '5px'
+          }}
+          autoFocus
+        />
+
+        {message && <p style={{ color: 'red', marginTop: '10px' }}>{message}</p>}
+
+        <button
+          onClick={verifyOTP}
+          disabled={loading || otp.length !== 6}
+          style={{
+            width: '100%',
+            padding: '12px',
+            marginTop: '20px',
+            backgroundColor: '#667eea',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: loading || otp.length !== 6 ? 'not-allowed' : 'pointer',
+            fontSize: '16px',
+            opacity: loading || otp.length !== 6 ? 0.6 : 1
+          }}
+        >
+          {loading ? 'Verifying...' : 'Verify OTP'}
+        </button>
+
+        <div style={{ textAlign: 'center', marginTop: '15px' }}>
+          {!cooldown ? (
+            <button
+              onClick={resendOTP}
+              disabled={resendLoading}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#f0f0f0',
+                border: '1px solid #ddd',
+                borderRadius: '5px',
+                cursor: resendLoading ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {resendLoading ? 'Resending...' : 'Resend OTP'}
+            </button>
+          ) : (
+            <p style={{ color: '#666' }}>Resend in {remaining}s</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Form submitted
   if (submitted) {
     return (
       <div style={{ padding: '20px', maxWidth: '600px', margin: '50px auto' }}>
@@ -63,6 +297,7 @@ function MerchantRegister() {
     );
   }
 
+  // Registration Form Step
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '20px auto' }}>
       <h1>Merchant Registration</h1>

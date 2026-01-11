@@ -80,10 +80,6 @@ function Home() {
     window.location.href = '/login';
   };
 
-  const goToMerchantRegister = () => {
-    window.location.href = '/merchant-register';
-  };
-
   if (!user) {
     return <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>;
   }
@@ -161,24 +157,6 @@ function Home() {
       <h1>Welcome{user.name ? `, ${user.name}` : ''}!</h1>
       <p>Phone: {user.phone}</p>
       <p>Role: {user.role}</p>
-      
-      {user.role === 'user' && (
-        <button 
-          onClick={goToMerchantRegister}
-          style={{
-            padding: '12px 24px',
-            margin: '10px',
-            backgroundColor: '#10b981',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            fontSize: '16px'
-          }}
-        >
-          Register as Merchant
-        </button>
-      )}
       
       <button onClick={logout}>Logout</button>
     </div>
