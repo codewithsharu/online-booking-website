@@ -1,0 +1,7 @@
+Approved SMS template for SMSINDIAHUB:
+
+Welcome to the xyz powered by SMSINDIAHUB. Your OTP for registration is {{OTP}}
+
+Usage:
+- Replace {{OTP}} with the generated 6-digit OTP.
+- Do not change wording or punctuation to avoid template rejection.

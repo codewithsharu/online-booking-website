@@ -42,6 +42,9 @@ const SMS_SENDER_ID = process.env.SMS_SENDER_ID || 'SMSHUB';
 const SMS_GWID = process.env.SMS_GWID || '2';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
+// Approved SMS template (must match provider's template)
+const SMS_TEMPLATE = 'Welcome to the xyz powered by SMSINDIAHUB. Your OTP for registration is {{OTP}}';
+
 // Normalize phone numbers to 10-digit (India) format
 const normalizePhone = (rawPhone) => {
   const digits = (rawPhone || '').replace(/\D/g, '');
@@ -113,7 +116,8 @@ app.post('/api/send-otp', async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     OTPService.saveOTP(normalizedPhone, otp);
 
-    const message = `Your OTP for login is: ${otp}. Valid for 5 minutes.`;
+    // Use approved template exactly as registered with provider
+    const message = SMS_TEMPLATE.replace('{{OTP}}', otp);
 
     // Use APIKey-based SMS endpoint (works with provided example)
     const smsUrl = `${SMS_API_URL}?APIKey=${SMS_API_KEY}&msisdn=91${normalizedPhone}&sid=${SMS_SENDER_ID}&msg=${encodeURIComponent(message)}&fl=0&gwid=${SMS_GWID}`;
