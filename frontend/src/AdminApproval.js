@@ -14,11 +14,15 @@ function AdminApproval() {
   const fetchPendingApplications = async () => {
     try {
       const token = localStorage.getItem('token');
-      const role = localStorage.getItem('role');
-      const phone = localStorage.getItem('phone');
+      let role = null;
+      try {
+        role = token ? JSON.parse(atob(token.split('.')[1])).role : null;
+      } catch (e) {
+        console.warn('❌ Failed to decode token role');
+      }
 
       // Verify admin is logged in
-      if (!token || role !== 'admin' || !phone) {
+      if (!token || role !== 'admin') {
         console.log('❌ Not authorized to access approvals');
         window.location.href = '/admin-login';
         return;

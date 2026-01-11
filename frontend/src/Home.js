@@ -13,10 +13,9 @@ function Home() {
   useEffect(() => {
     const getUser = async () => {
       const token = localStorage.getItem('token');
-      const phone = localStorage.getItem('phone');
 
-      // If no token or phone, redirect to login
-      if (!token || !phone) {
+      // If no token, redirect to login
+      if (!token) {
         console.log('❌ No valid session found, redirecting to login');
         window.location.href = '/login';
         return;

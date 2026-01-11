@@ -30,7 +30,12 @@ function MerchantDashboard() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const role = localStorage.getItem('role');
+      let role = null;
+      try {
+        role = token ? JSON.parse(atob(token.split('.')[1])).role : null;
+      } catch (e) {
+        console.warn('❌ Failed to decode token role');
+      }
       
       // Verify user is logged in and is a merchant
       if (!token || role !== 'merchant') {

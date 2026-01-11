@@ -1,6 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 
+const decodeRole = (token) => {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.role;
+  } catch (e) {
+    console.warn('❌ Failed to decode token role', e);
+    return null;
+  }
+};
+
 function ProtectedRoute({ children, requiredRole }) {
   const [isAuthorized, setIsAuthorized] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -8,11 +18,10 @@ function ProtectedRoute({ children, requiredRole }) {
   useEffect(() => {
     // Check if user has valid token
     const token = localStorage.getItem('token');
-    const role = localStorage.getItem('role');
-    const phone = localStorage.getItem('phone');
+    const role = token ? decodeRole(token) : null;
 
-    // If no token or no role, user is not logged in
-    if (!token || !role || !phone) {
+    // If no token, user is not logged in
+    if (!token) {
       console.log('❌ No valid session found');
       setIsAuthorized(false);
       setLoading(false);
@@ -28,7 +37,7 @@ function ProtectedRoute({ children, requiredRole }) {
     }
 
     // User is authorized
-    console.log(`✅ User authorized with role: ${role}`);
+    console.log(`✅ User authorized with role: ${role || 'unknown'}`);
     setIsAuthorized(true);
     setLoading(false);
   }, [requiredRole]);

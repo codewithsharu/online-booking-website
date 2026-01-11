@@ -139,15 +139,23 @@ function Login() {
       console.log('OTP verify response data:', data);
 
       if (res.ok) {
+        // Store only JWT token; derive role from token payload
         localStorage.setItem('token', data.token);
-        localStorage.setItem('role', data.role);
-        localStorage.setItem('phone', '91' + trimmedPhone); // Save phone for session verification
+
+        let roleFromToken = data.role;
+        try {
+          const payload = JSON.parse(atob(data.token.split('.')[1]));
+          roleFromToken = payload.role;
+        } catch (e) {
+          console.warn('⚠️ Could not decode role from token, falling back to API role');
+        }
+
         setStep('verified');
         setTimeout(() => {
           // Redirect based on role
-          if (data.role === 'merchant') {
+          if (roleFromToken === 'merchant') {
             window.location.href = '/merchant-dashboard';
-          } else if (data.role === 'admin') {
+          } else if (roleFromToken === 'admin') {
             window.location.href = '/admin';
           } else {
             window.location.href = '/home';

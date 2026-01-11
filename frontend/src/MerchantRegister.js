@@ -27,13 +27,20 @@ function MerchantRegister() {
   // Check if user is already logged in (redirect them)
   useEffect(() => {
     const loggedInToken = localStorage.getItem('token');
-    const role = localStorage.getItem('role');
+    let role = null;
+    try {
+      role = loggedInToken ? JSON.parse(atob(loggedInToken.split('.')[1])).role : null;
+    } catch (e) {
+      console.warn('⚠️ Unable to decode role from token');
+    }
 
     if (loggedInToken) {
       console.log('✅ User already logged in, redirecting');
       // If they're already a merchant, go to merchant dashboard
       if (role === 'merchant') {
         window.location.href = '/merchant-dashboard';
+      } else if (role === 'admin') {
+        window.location.href = '/admin';
       } else {
         // Regular users can't access merchant register directly
         window.location.href = '/home';
