@@ -22,7 +22,7 @@ function Home() {
       }
 
       try {
-        console.log('📱 Fetching user data with phone:', phone);
+        console.log('📱 Fetching user data...');
         const res = await fetch(`${API_URL}/user`, {
           headers: { 
             'Authorization': `Bearer ${token}`,
