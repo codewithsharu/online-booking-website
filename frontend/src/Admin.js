@@ -37,7 +37,7 @@ function Admin() {
         }
 
         const data = await res.json();
-        setUsers(data.data);
+        setUsers(data && data.data ? data.data : {});
       } catch (error) {
         console.error('❌ Error loading admin data:', error);
       } finally {
@@ -81,7 +81,7 @@ function Admin() {
       
       <h2>Registered Users</h2>
       
-      {Object.keys(users).length === 0 ? (
+      {!users || Object.keys(users).length === 0 ? (
         <p>No users yet</p>
       ) : (
         <table>
