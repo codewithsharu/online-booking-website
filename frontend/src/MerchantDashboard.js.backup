@@ -1,0 +1,584 @@
+import React, { useState, useEffect } from 'react';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+
+function MerchantDashboard() {
+  const [merchantInfo, setMerchantInfo] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showProfileForm, setShowProfileForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    shopName: '',
+    shopCategory: '',
+    pincode: '',
+    area: '',
+    fullAddress: '',
+    openingTime: '',
+    closingTime: '',
+    slotDuration: '15',
+    services: [],
+    shopImage: ''
+  });
+
+  const [serviceInput, setServiceInput] = useState('');
+
+  useEffect(() => {
+    fetchMerchantStatus();
+    fetchProfile();
+  }, []);
+
+  const fetchMerchantStatus = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/merchant/status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setMerchantInfo(data);
+      }
+    } catch (error) {
+      console.error('Error fetching merchant status:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchProfile = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/merchant/profile`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+      if (res.ok && data.hasProfile) {
+        setProfile(data.profile);
+        setFormData({
+          shopName: data.profile.shopName,
+          shopCategory: data.profile.shopCategory,
+          pincode: data.profile.location.pincode,
+          area: data.profile.location.area,
+          fullAddress: data.profile.location.fullAddress,
+          openingTime: data.profile.workingHours.openingTime,
+          closingTime: data.profile.workingHours.closingTime,
+          slotDuration: data.profile.slotDuration.toString(),
+          services: data.profile.services,
+          shopImage: data.profile.shopImage || ''
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const token = localStorage.getItem('token');
+      const formDataUpload = new FormData();
+      formDataUpload.append('image', file);
+
+      const res = await fetch(`${API_URL}/merchant/upload-image`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formDataUpload
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setFormData({ ...formData, shopImage: data.imageUrl });
+        alert('Image uploaded successfully!');
+      } else {
+        alert(data.error || 'Failed to upload image');
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleAddService = () => {
+    if (serviceInput.trim()) {
+      setFormData({
+        ...formData,
+        services: [...formData.services, serviceInput.trim()]
+      });
+      setServiceInput('');
+    }
+  };
+
+  const handleRemoveService = (index) => {
+    setFormData({
+      ...formData,
+      services: formData.services.filter((_, i) => i !== index)
+    });
+  };
+
+  const handleSubmitProfile = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/merchant/profile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        alert('Profile saved successfully!');
+        setProfile(data.profile);
+        setShowProfileForm(false);
+        fetchProfile();
+      } else {
+        alert(data.error || 'Failed to save profile');
+      }
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('Failed to save profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    window.location.href = '/login';
+  };
+
+  if (loading) {
+    return <div style={{ padding: '20px' }}>Loading...</div>;
+  }
+
+  return (
+    <div style={{ padding: '20px', maxWidth: '1000px', margin: '50px auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+        <h1>🏪 Merchant Dashboard</h1>
+        <button 
+          onClick={handleLogout}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: '#667eea',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer'
+          }}
+        >
+          Logout
+        </button>
+      </div>
+      
+      {merchantInfo && merchantInfo.hasApplication && merchantInfo.status === 'approved' ? (
+        <div>
+          <div style={{ 
+            backgroundColor: '#f0fdf4', 
+            padding: '20px', 
+            borderRadius: '10px',
+            border: '2px solid #10b981',
+            marginBottom: '30px'
+          }}>
+            <h3>✅ Verified Merchant</h3>
+            <p><strong>Merchant ID:</strong> {merchantInfo.merchantId}</p>
+            <p><strong>Business:</strong> {merchantInfo.application.businessName}</p>
+          </div>
+
+          {profile && !showProfileForm ? (
+            <div style={{ 
+              backgroundColor: 'white', 
+              padding: '30px', 
+              borderRadius: '10px',
+              border: '1px solid #e5e7eb'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h2>Shop Profile</h2>
+                <button 
+                  onClick={() => setShowProfileForm(true)}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Edit Profile
+                </button>
+              </div>
+
+              {profile.shopImage && (
+                <img 
+                  src={profile.shopImage} 
+                  alt="Shop" 
+                  style={{ 
+                    width: '100%', 
+                    maxHeight: '300px', 
+                    objectFit: 'cover', 
+                    borderRadius: '10px',
+                    marginBottom: '20px'
+                  }} 
+                />
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div>
+                  <p><strong>Shop Name:</strong> {profile.shopName}</p>
+                  <p><strong>Category:</strong> {profile.shopCategory}</p>
+                  <p><strong>Address:</strong> {profile.location.fullAddress}, {profile.location.area}, {profile.location.pincode}</p>
+                </div>
+                <div>
+                  <p><strong>Opening Time:</strong> {profile.workingHours.openingTime}</p>
+                  <p><strong>Closing Time:</strong> {profile.workingHours.closingTime}</p>
+                  <p><strong>Slot Duration:</strong> {profile.slotDuration} minutes</p>
+                </div>
+              </div>
+
+              {profile.services && profile.services.length > 0 && (
+                <div style={{ marginTop: '20px' }}>
+                  <h3>Services Offered</h3>
+                  <ul style={{ listStyle: 'none', padding: 0 }}>
+                    {profile.services.map((service, index) => (
+                      <li key={index} style={{ 
+                        padding: '10px', 
+                        backgroundColor: '#f3f4f6', 
+                        marginBottom: '5px',
+                        borderRadius: '5px'
+                      }}>
+                        {service}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ 
+              backgroundColor: 'white', 
+              padding: '30px', 
+              borderRadius: '10px',
+              border: '1px solid #e5e7eb'
+            }}>
+              <h2>{profile ? 'Edit Profile' : 'Create Profile'}</h2>
+              <form onSubmit={handleSubmitProfile}>
+                <div style={{ marginBottom: '20px' }}>
+                  <h3>Shop Information</h3>
+                  
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px' }}>Shop Name *</label>
+                    <input
+                      type="text"
+                      value={formData.shopName}
+                      onChange={(e) => setFormData({ ...formData, shopName: e.target.value })}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '5px',
+                        fontSize: '16px'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px' }}>Shop Category *</label>
+                    <select
+                      value={formData.shopCategory}
+                      onChange={(e) => setFormData({ ...formData, shopCategory: e.target.value })}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '5px',
+                        fontSize: '16px'
+                      }}
+                    >
+                      <option value="">Select Category</option>
+                      <option value="Barber">Barber</option>
+                      <option value="Salon">Salon</option>
+                      <option value="Clinic">Clinic</option>
+                      <option value="Repair">Repair</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px' }}>Shop Image</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '5px'
+                      }}
+                    />
+                    {uploadingImage && <p>Uploading...</p>}
+                    {formData.shopImage && <p style={{ color: '#10b981' }}>✓ Image uploaded</p>}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <h3>Location</h3>
+                  
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px' }}>Pincode *</label>
+                    <input
+                      type="text"
+                      value={formData.pincode}
+                      onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                      required
+                      maxLength="6"
+                      pattern="\d{6}"
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '5px',
+                        fontSize: '16px'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px' }}>Area *</label>
+                    <input
+                      type="text"
+                      value={formData.area}
+                      onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '5px',
+                        fontSize: '16px'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px' }}>Full Address *</label>
+                    <textarea
+                      value={formData.fullAddress}
+                      onChange={(e) => setFormData({ ...formData, fullAddress: e.target.value })}
+                      required
+                      rows="3"
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '5px',
+                        fontSize: '16px'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <h3>Working Hours & Slots</h3>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px' }}>Opening Time *</label>
+                      <input
+                        type="time"
+                        value={formData.openingTime}
+                        onChange={(e) => setFormData({ ...formData, openingTime: e.target.value })}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '5px',
+                          fontSize: '16px'
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px' }}>Closing Time *</label>
+                      <input
+                        type="time"
+                        value={formData.closingTime}
+                        onChange={(e) => setFormData({ ...formData, closingTime: e.target.value })}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '5px',
+                          fontSize: '16px'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px' }}>Slot Duration *</label>
+                    <select
+                      value={formData.slotDuration}
+                      onChange={(e) => setFormData({ ...formData, slotDuration: e.target.value })}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '5px',
+                        fontSize: '16px'
+                      }}
+                    >
+                      <option value="10">10 minutes</option>
+                      <option value="15">15 minutes</option>
+                      <option value="30">30 minutes</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <h3>Services</h3>
+                  
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                    <input
+                      type="text"
+                      value={serviceInput}
+                      onChange={(e) => setServiceInput(e.target.value)}
+                      placeholder="Enter service name"
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '5px',
+                        fontSize: '16px'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddService}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: '#10b981',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '5px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  {formData.services.length > 0 && (
+                    <ul style={{ listStyle: 'none', padding: 0 }}>
+                      {formData.services.map((service, index) => (
+                        <li key={index} style={{ 
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '10px', 
+                          backgroundColor: '#f3f4f6', 
+                          marginBottom: '5px',
+                          borderRadius: '5px'
+                        }}>
+                          <span>{service}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveService(index)}
+                            style={{
+                              padding: '5px 10px',
+                              backgroundColor: '#ef4444',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '3px',
+                              cursor: 'pointer',
+                              fontSize: '12px'
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    style={{
+                      flex: 1,
+                      padding: '15px',
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: saving ? 'not-allowed' : 'pointer',
+                      fontSize: '16px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {saving ? 'Saving...' : 'Save Profile'}
+                  </button>
+
+                  {profile && (
+                    <button
+                      type="button"
+                      onClick={() => setShowProfileForm(false)}
+                      style={{
+                        padding: '15px 30px',
+                        backgroundColor: '#6b7280',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '5px',
+                        cursor: 'pointer',
+                        fontSize: '16px'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          <p>Please complete your merchant application first.</p>
+        </div>
+      )}
+    </div>
+  );
+}

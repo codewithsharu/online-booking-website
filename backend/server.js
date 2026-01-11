@@ -2,11 +2,27 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const cors = require('cors');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
 require('dotenv').config();
 
 const app = express();
 app.use(express.json());
 app.use(cors());
+
+// Cloudinary Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Multer configuration for memory storage
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 // Environment Variables with fallbacks
 const PORT = process.env.PORT || 3000;
@@ -22,6 +38,7 @@ let otpStore = {};
 let users = {};
 let merchantApplications = {};
 let userNames = {};
+let merchantProfiles = {}; // Merchant ID -> Profile data
 
 // Send OTP
 app.post('/api/send-otp', async (req, res) => {
@@ -332,6 +349,152 @@ app.get('/api/admin', verifyToken, (req, res) => {
   res.json({ message: 'Admin page', data: users });
 });
 
+// Upload shop image to Cloudinary
+app.post('/api/merchant/upload-image', verifyToken, upload.single('image'), async (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can upload shop images' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    // Get merchant ID from merchantApplications
+    const phone = req.user.phone;
+    const application = Object.values(merchantApplications).find(app => app.phone === phone && app.status === 'approved');
+    
+    if (!application || !application.merchantId) {
+      return res.status(400).json({ error: 'Merchant ID not found. Please ensure your application is approved.' });
+    }
+
+    // Upload to Cloudinary using upload_stream
+    const uploadPromise = new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'merchant-shops',
+          public_id: `shop_${application.merchantId}_${Date.now()}`,
+          resource_type: 'image'
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      uploadStream.end(req.file.buffer);
+    });
+
+    const result = await uploadPromise;
+    console.log(`✅ Image uploaded for merchant ${application.merchantId}: ${result.secure_url}`);
+    
+    res.json({ 
+      success: true, 
+      imageUrl: result.secure_url,
+      publicId: result.public_id
+    });
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    res.status(500).json({ error: 'Failed to upload image' });
+  }
+});
+
+// Create or update merchant profile
+app.post('/api/merchant/profile', verifyToken, (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can manage profiles' });
+    }
+
+    const { shopName, shopCategory, pincode, area, fullAddress, openingTime, closingTime, slotDuration, services, shopImage } = req.body;
+    
+    // Validate required fields
+    if (!shopName || !shopCategory || !pincode || !area || !fullAddress || !openingTime || !closingTime || !slotDuration) {
+      return res.status(400).json({ error: 'All required fields must be filled' });
+    }
+
+    // Get merchant ID
+    const phone = req.user.phone;
+    const application = Object.values(merchantApplications).find(app => app.phone === phone && app.status === 'approved');
+    
+    if (!application || !application.merchantId) {
+      return res.status(400).json({ error: 'Merchant ID not found. Please ensure your application is approved.' });
+    }
+
+    const merchantId = application.merchantId;
+    
+    merchantProfiles[merchantId] = {
+      merchantId,
+      phone,
+      shopName,
+      shopCategory,
+      location: {
+        pincode,
+        area,
+        fullAddress
+      },
+      workingHours: {
+        openingTime,
+        closingTime
+      },
+      slotDuration: parseInt(slotDuration),
+      services: services || [],
+      shopImage: shopImage || null,
+      updatedAt: new Date().toISOString(),
+      createdAt: merchantProfiles[merchantId]?.createdAt || new Date().toISOString()
+    };
+    
+    console.log(`✅ Profile ${merchantProfiles[merchantId].createdAt === merchantProfiles[merchantId].updatedAt ? 'created' : 'updated'} for merchant ${merchantId}`);
+    res.json({ success: true, message: 'Profile saved successfully', profile: merchantProfiles[merchantId] });
+  } catch (error) {
+    console.error('Error saving merchant profile:', error);
+    res.status(500).json({ error: 'Failed to save profile' });
+  }
+});
+
+// Get own merchant profile
+app.get('/api/merchant/profile', verifyToken, (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can access profiles' });
+    }
+
+    const phone = req.user.phone;
+    const application = Object.values(merchantApplications).find(app => app.phone === phone && app.status === 'approved');
+    
+    if (!application || !application.merchantId) {
+      return res.status(400).json({ error: 'Merchant ID not found' });
+    }
+
+    const profile = merchantProfiles[application.merchantId];
+    
+    if (!profile) {
+      return res.json({ hasProfile: false, merchantId: application.merchantId });
+    }
+    
+    res.json({ hasProfile: true, profile });
+  } catch (error) {
+    console.error('Error fetching merchant profile:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// Get merchant profile by ID (public)
+app.get('/api/merchant/profile/:merchantId', (req, res) => {
+  try {
+    const { merchantId } = req.params;
+    const profile = merchantProfiles[merchantId];
+    
+    if (!profile) {
+      return res.status(404).json({ error: 'Merchant profile not found' });
+    }
+    
+    res.json({ profile });
+  } catch (error) {
+    console.error('Error fetching merchant profile:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
 app.listen(PORT, HOST, () => {
   console.log('\n' + '═'.repeat(70));
   console.log('🚀 SERVER STARTED SUCCESSFULLY');
@@ -341,6 +504,7 @@ app.listen(PORT, HOST, () => {
   console.log(`🔐 JWT Secret:      ${JWT_SECRET.substring(0, 20)}...`);
   console.log(`📧 SMS API:         ${SMS_API_URL}`);
   console.log(`🔑 SMS API Key:     ${SMS_API_KEY.substring(0, 10)}...`);
+  console.log(`☁️  Cloudinary:      ${process.env.CLOUDINARY_CLOUD_NAME || 'Not configured'}`);
   console.log(`👤 Admin Password:  ${ADMIN_PASSWORD === 'admin123' ? '⚠️  DEFAULT (Change in production!)' : '✅ Custom'}`);
   console.log(`⏰ Started at:      ${new Date().toISOString()}`);
   console.log('═'.repeat(70));
@@ -352,6 +516,10 @@ app.listen(PORT, HOST, () => {
   console.log(`   POST /api/save-name                 - Save user name (protected)`);
   console.log(`   POST /api/merchant/apply            - Submit merchant application (protected)`);
   console.log(`   GET  /api/merchant/status           - Get merchant application status (protected)`);
+  console.log(`   POST /api/merchant/profile          - Create/update merchant profile (merchant)`);
+  console.log(`   GET  /api/merchant/profile          - Get own merchant profile (merchant)`);
+  console.log(`   GET  /api/merchant/profile/:id      - Get merchant profile by ID (public)`);
+  console.log(`   POST /api/merchant/upload-image     - Upload shop image (merchant)`);
   console.log(`   GET  /api/admin/merchants/pending   - Get pending applications (admin)`);
   console.log(`   POST /api/admin/merchants/approve   - Approve application (admin)`);
   console.log(`   POST /api/admin/merchants/reject    - Reject application (admin)`);
