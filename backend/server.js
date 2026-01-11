@@ -110,10 +110,6 @@ app.post('/api/send-otp', async (req, res) => {
     const { phone } = req.body;
     const normalizedPhone = normalizePhone(phone);
 
-    if (!normalizedPhone) {
-      return res.status(400).json({ error: 'Valid 10-digit phone number required' });
-    }
-
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     OTPService.saveOTP(normalizedPhone, otp);
 
@@ -138,7 +134,8 @@ app.post('/api/verify-otp', async (req, res) => {
     const { phone, otp } = req.body;
     const normalizedPhone = normalizePhone(phone);
 
-    if (!normalizedPhone || !otp) {
+    // Keep basic presence check but don't hard-fail on format
+    if (!phone || !otp) {
       return res.status(400).json({ error: 'Phone and OTP required' });
     }
 
