@@ -1,5 +1,3 @@
-import React from 'react';
-
 function ProtectedRoute({ children, requiredRole }) {
   const token = localStorage.getItem('token');
   const role = localStorage.getItem('role');

@@ -128,9 +128,9 @@ function Login() {
             <div className="login-footer">
               <p className="policy-text">
                 I accept that I have read & understood Appointment Booking's<br/>
-                <a href="#" className="policy-link">Privacy Policy and T&Cs.</a>
+                <button type="button" className="policy-link">Privacy Policy and T&Cs.</button>
               </p>
-              <a href="#" className="trouble-link">Trouble logging in?</a>
+              <button type="button" className="trouble-link">Trouble logging in?</button>
             </div>
           </div>
         )}
