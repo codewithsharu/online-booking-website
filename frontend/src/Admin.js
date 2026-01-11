@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
 function Admin() {
-  const [users, setUsers] = useState({});
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(null);
 
@@ -37,13 +37,17 @@ function Admin() {
       }
 
       const data = await res.json();
-      setUsers(data && data.data ? data.data : {});
+      setUsers(data && data.data ? data.data : []);
+      setLoading(false);
     } catch (error) {
       console.error('❌ Error loading admin data:', error);
-    } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   const handleDeleteUser = async (phone) => {
     if (!window.confirm(`Are you sure you want to delete user ${phone}?`)) {
@@ -61,8 +65,8 @@ function Admin() {
 
       if (res.ok) {
         console.log('✅ User deleted successfully');
-        // Reload users
-        setUsers(users.filter(u => u.phone !== phone));
+        // Remove deleted user from list
+        setUsers(prev => prev.filter(u => u.phone !== phone));
       } else {
         const data = await res.json();
         alert('Error: ' + (data.error || 'Failed to delete user'));
