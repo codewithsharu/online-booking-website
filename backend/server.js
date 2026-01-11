@@ -42,6 +42,18 @@ const SMS_SENDER_ID = process.env.SMS_SENDER_ID || 'SMSHUB';
 const SMS_GWID = process.env.SMS_GWID || '2';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
+// Normalize phone numbers to 10-digit (India) format
+const normalizePhone = (rawPhone) => {
+  const digits = (rawPhone || '').replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) {
+    return digits.slice(2); // strip country code if present
+  }
+  if (digits.length === 10) {
+    return digits;
+  }
+  return null;
+};
+
 // MongoDB Connection
 mongoose.connect(MONGODB_URI)
 .then(() => {
@@ -96,19 +108,22 @@ const verifyToken = (req, res, next) => {
 app.post('/api/send-otp', async (req, res) => {
   try {
     const { phone } = req.body;
-    
-    if (!phone || !/^\d{10}$/.test(phone)) {
+    const normalizedPhone = normalizePhone(phone);
+
+    if (!normalizedPhone) {
       return res.status(400).json({ error: 'Valid 10-digit phone number required' });
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    OTPService.saveOTP(phone, otp);
+    OTPService.saveOTP(normalizedPhone, otp);
 
     const message = `Your OTP for login is: ${otp}. Valid for 5 minutes.`;
-    const smsUrl = `${SMS_API_URL}?user=shareenpan&password=Fgouter55&msisdn=${phone}&sid=${SMS_SENDER_ID}&msg=${encodeURIComponent(message)}&fl=0&gwid=${SMS_GWID}`;
+
+    // Use APIKey-based SMS endpoint (works with provided example)
+    const smsUrl = `${SMS_API_URL}?APIKey=${SMS_API_KEY}&msisdn=91${normalizedPhone}&sid=${SMS_SENDER_ID}&msg=${encodeURIComponent(message)}&fl=0&gwid=${SMS_GWID}`;
 
     await axios.get(smsUrl);
-    console.log(`📱 OTP sent to ${phone}: ${otp}`);
+    console.log(`📱 OTP sent to ${normalizedPhone}: ${otp}`);
     
     res.json({ success: true, message: 'OTP sent successfully' });
   } catch (error) {
@@ -121,28 +136,29 @@ app.post('/api/send-otp', async (req, res) => {
 app.post('/api/verify-otp', async (req, res) => {
   try {
     const { phone, otp } = req.body;
+    const normalizedPhone = normalizePhone(phone);
 
-    if (!phone || !otp) {
+    if (!normalizedPhone || !otp) {
       return res.status(400).json({ error: 'Phone and OTP required' });
     }
 
-    const isValid = OTPService.verifyOTP(phone, otp);
+    const isValid = OTPService.verifyOTP(normalizedPhone, otp);
     if (!isValid) {
       return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
 
     // Find or create user
-    let user = await User.findOne({ phone });
+    let user = await User.findOne({ phone: normalizedPhone });
     let isFirstTime = false;
     
     if (!user) {
       user = await User.create({
-        phone,
+        phone: normalizedPhone,
         role: 'user',
         name: null
       });
       isFirstTime = true;
-      console.log(`✨ New user created: ${phone}`);
+      console.log(`✨ New user created: ${normalizedPhone}`);
     }
 
     // Check if user has a name
