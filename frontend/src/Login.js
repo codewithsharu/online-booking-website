@@ -27,18 +27,31 @@ function Login() {
   }, [step, cooldown, remaining]);
 
   const sendOTP = async () => {
-    if (!phone) {
+    // Trim phone and validate
+    const trimmedPhone = phone.trim();
+    
+    if (!trimmedPhone) {
       setMessage('Enter phone number');
+      return;
+    }
+
+    if (trimmedPhone.length !== 10) {
+      setMessage(`Enter valid 10-digit phone number (current: ${trimmedPhone.length} digits)`);
+      return;
+    }
+
+    if (!/^\d{10}$/.test(trimmedPhone)) {
+      setMessage('Phone number must contain only digits');
       return;
     }
     
     setLoading(true);
     try {
-      console.log('Sending OTP request to', `${API_URL}/send-otp`, { phone: '91' + phone });
+      console.log('📱 Sending OTP to:', trimmedPhone);
       const res = await fetch(`${API_URL}/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: '91' + phone })
+        body: JSON.stringify({ phone: '91' + trimmedPhone })
       });
       console.log('OTP send response status:', res.status);
       const data = await res.json().catch(() => ({}));
@@ -52,14 +65,12 @@ function Login() {
         // For testing: show OTP if returned by server
         if (data.otp) {
           console.log('🔐 TEST OTP (from server):', data.otp);
-          // Optional: show in UI during development
-          // setMessage(`Test OTP: ${data.otp}`);
         }
       } else {
         setMessage(data.error || `Failed to send OTP (status ${res.status})`);
       }
     } catch (error) {
-      console.error('Network error sending OTP:', error);
+      console.error('❌ Network error sending OTP:', error);
       setMessage('Network error: ' + error.message + '. If testing on mobile, set REACT_APP_API_URL to your PC IP (e.g. http://192.168.x.x:3000) or use /api with a proxy.');
     } finally {
       setLoading(false);
@@ -71,11 +82,12 @@ function Login() {
     setResendLoading(true);
     setMessage('');
     try {
-      console.log('Resending OTP to', `${API_URL}/send-otp`, { phone: '91' + phone });
+      const trimmedPhone = phone.trim();
+      console.log('📱 Resending OTP to:', trimmedPhone);
       const res = await fetch(`${API_URL}/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: '91' + phone })
+        body: JSON.stringify({ phone: '91' + trimmedPhone })
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
@@ -88,7 +100,7 @@ function Login() {
         setMessage(data.error || `Failed to resend OTP (status ${res.status})`);
       }
     } catch (error) {
-      console.error('Network error resending OTP:', error);
+      console.error('❌ Network error resending OTP:', error);
       setMessage('Network error: ' + error.message);
     } finally {
       setResendLoading(false);
@@ -96,18 +108,31 @@ function Login() {
   };
 
   const verifyOTP = async () => {
-    if (!otp) {
+    const trimmedOTP = otp.trim();
+    
+    if (!trimmedOTP) {
       setMessage('Enter OTP');
+      return;
+    }
+
+    if (trimmedOTP.length !== 6) {
+      setMessage(`Enter valid 6-digit OTP (current: ${trimmedOTP.length} digits)`);
+      return;
+    }
+
+    if (!/^\d{6}$/.test(trimmedOTP)) {
+      setMessage('OTP must contain only 6 digits');
       return;
     }
     
     setLoading(true);
     try {
-      console.log('Verifying OTP to', `${API_URL}/verify-otp`, { phone: '91' + phone, otp });
+      const trimmedPhone = phone.trim();
+      console.log('🔐 Verifying OTP for phone:', trimmedPhone);
       const res = await fetch(`${API_URL}/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: '91' + phone, otp })
+        body: JSON.stringify({ phone: '91' + trimmedPhone, otp: trimmedOTP })
       });
       console.log('OTP verify response status:', res.status);
       const data = await res.json().catch(() => ({}));
@@ -116,7 +141,7 @@ function Login() {
       if (res.ok) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('role', data.role);
-        localStorage.setItem('phone', '91' + phone); // Save phone for session verification
+        localStorage.setItem('phone', '91' + trimmedPhone); // Save phone for session verification
         setStep('verified');
         setTimeout(() => {
           // Redirect based on role
@@ -132,7 +157,7 @@ function Login() {
         setMessage(data.error || `Invalid OTP (status ${res.status})`);
       }
     } catch (error) {
-      console.error('Network error verifying OTP:', error);
+      console.error('❌ Network error verifying OTP:', error);
       setMessage('Network error: ' + error.message);
     } finally {
       setLoading(false);

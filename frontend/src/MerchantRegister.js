@@ -53,18 +53,29 @@ function MerchantRegister() {
   }, [cooldown, remaining]);
 
   const sendOTP = async () => {
-    if (!phone || phone.length !== 10) {
-      setMessage('Enter valid 10-digit phone number');
+    // Trim and validate phone
+    const trimmedPhone = phone.trim();
+    
+    if (!trimmedPhone || trimmedPhone.length !== 10) {
+      setMessage(`Enter valid 10-digit phone number (current: ${trimmedPhone.length} digits)`);
+      console.log('❌ Invalid phone:', trimmedPhone, 'Length:', trimmedPhone.length);
+      return;
+    }
+
+    // Double-check phone contains only digits
+    if (!/^\d{10}$/.test(trimmedPhone)) {
+      setMessage('Phone number must contain only digits');
       return;
     }
 
     setLoading(true);
     setMessage('');
     try {
+      console.log('📱 Sending OTP to:', trimmedPhone);
       const res = await fetch(`${API_URL}/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: '91' + phone })
+        body: JSON.stringify({ phone: '91' + trimmedPhone })
       });
       const data = await res.json();
 
@@ -80,6 +91,7 @@ function MerchantRegister() {
       }
     } catch (error) {
       setMessage('Network error: ' + error.message);
+      console.error('❌ Network error:', error);
     } finally {
       setLoading(false);
     }
@@ -87,13 +99,21 @@ function MerchantRegister() {
 
   const resendOTP = async () => {
     if (cooldown) return;
+    
+    const trimmedPhone = phone.trim();
+    if (!trimmedPhone || trimmedPhone.length !== 10) {
+      setMessage('Invalid phone number');
+      return;
+    }
+
     setResendLoading(true);
     setMessage('');
     try {
+      console.log('📱 Resending OTP to:', trimmedPhone);
       const res = await fetch(`${API_URL}/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: '91' + phone })
+        body: JSON.stringify({ phone: '91' + trimmedPhone })
       });
       const data = await res.json();
       if (res.ok) {
@@ -107,24 +127,34 @@ function MerchantRegister() {
       }
     } catch (error) {
       setMessage('Network error: ' + error.message);
+      console.error('❌ Network error:', error);
     } finally {
       setResendLoading(false);
     }
   };
 
   const verifyOTP = async () => {
-    if (!otp || otp.length !== 6) {
-      setMessage('Enter valid 6-digit OTP');
+    const trimmedOTP = otp.trim();
+    
+    if (!trimmedOTP || trimmedOTP.length !== 6) {
+      setMessage(`Enter valid 6-digit OTP (current: ${trimmedOTP.length} digits)`);
+      return;
+    }
+
+    // Double-check OTP contains only digits
+    if (!/^\d{6}$/.test(trimmedOTP)) {
+      setMessage('OTP must contain only 6 digits');
       return;
     }
 
     setLoading(true);
     setMessage('');
     try {
+      console.log('🔐 Verifying OTP for phone:', phone);
       const res = await fetch(`${API_URL}/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: '91' + phone, otp })
+        body: JSON.stringify({ phone: '91' + phone, otp: trimmedOTP })
       });
       const data = await res.json();
 
@@ -132,11 +162,13 @@ function MerchantRegister() {
         setToken(data.token);
         setStep('form');
         setMessage('');
+        console.log('✅ OTP verified successfully');
       } else {
         setMessage(data.error || 'Invalid OTP');
       }
     } catch (error) {
       setMessage('Network error: ' + error.message);
+      console.error('❌ Network error:', error);
     } finally {
       setLoading(false);
     }
