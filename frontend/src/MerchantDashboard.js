@@ -208,22 +208,94 @@ function MerchantDashboard() {
         </button>
       </div>
 
-      {!merchantData || !merchantData.approved ? (
+      {!merchantData || !merchantData.hasApplication ? (
         <div style={{ 
           padding: '40px', 
           textAlign: 'center', 
-          backgroundColor: '#f8f9fa', 
+          backgroundColor: '#fff3cd', 
           borderRadius: '8px',
-          border: '1px solid #dee2e6'
+          border: '2px solid #ffc107'
         }}>
-          <h2>Please complete merchant application first</h2>
-          <p>Your merchant account is pending approval or not yet registered.</p>
+          <h2>📋 No Application Found</h2>
+          <p>Please submit a merchant application to get started.</p>
+          <a href="/merchant-register" style={{ 
+            display: 'inline-block',
+            marginTop: '20px',
+            padding: '12px 24px',
+            backgroundColor: '#007bff',
+            color: 'white',
+            textDecoration: 'none',
+            borderRadius: '5px',
+            fontWeight: 'bold'
+          }}>Apply as Merchant</a>
+        </div>
+      ) : merchantData.status === 'pending' ? (
+        <div style={{ 
+          padding: '40px', 
+          textAlign: 'center', 
+          backgroundColor: '#fff3cd', 
+          borderRadius: '8px',
+          border: '2px solid #ffc107'
+        }}>
+          <h2>⏳ Application Under Review</h2>
+          <p><strong>Status:</strong> <span style={{ color: '#ff9800' }}>PENDING</span></p>
+          <p>Your merchant application is being reviewed by our admin team.</p>
+          <p style={{ fontSize: '14px', color: '#666', marginTop: '20px' }}>Applied on: {new Date(merchantData.application.appliedAt).toLocaleString()}</p>
+          <div style={{ 
+            marginTop: '30px',
+            padding: '20px',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '5px',
+            textAlign: 'left'
+          }}>
+            <h3>Application Details:</h3>
+            <p><strong>Business Name:</strong> {merchantData.application.businessName}</p>
+            <p><strong>Owner Name:</strong> {merchantData.application.ownerName}</p>
+            <p><strong>Category:</strong> {merchantData.application.businessCategory}</p>
+            <p><strong>Location:</strong> {merchantData.application.area}, {merchantData.application.pincode}</p>
+          </div>
+        </div>
+      ) : merchantData.status === 'rejected' ? (
+        <div style={{ 
+          padding: '40px', 
+          textAlign: 'center', 
+          backgroundColor: '#f8d7da', 
+          borderRadius: '8px',
+          border: '2px solid #dc3545'
+        }}>
+          <h2>❌ Application Rejected</h2>
+          <p><strong>Status:</strong> <span style={{ color: '#dc3545' }}>REJECTED</span></p>
+          <p>Unfortunately, your merchant application was not approved.</p>
+          {merchantData.application.rejectionReason && (
+            <p style={{ marginTop: '15px', fontWeight: 'bold' }}>
+              Reason: {merchantData.application.rejectionReason}
+            </p>
+          )}
+          <p style={{ fontSize: '14px', color: '#666', marginTop: '20px' }}>Rejected on: {new Date(merchantData.application.rejectedAt).toLocaleString()}</p>
         </div>
       ) : (
         <div>
-          <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#e7f3ff', borderRadius: '8px' }}>
-            <p><strong>Merchant ID:</strong> {merchantData.merchantId}</p>
-            <p><strong>Business Name:</strong> {profileData?.shopName || 'Not set'}</p>
+          <div style={{ 
+            marginBottom: '20px', 
+            padding: '20px', 
+            backgroundColor: '#d4edda', 
+            borderRadius: '8px',
+            border: '2px solid #28a745'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ margin: '0 0 10px 0', color: '#155724' }}>✅ Approved Merchant</h3>
+                <p style={{ margin: '5px 0' }}><strong>Status:</strong> <span style={{ color: '#28a745', fontWeight: 'bold' }}>APPROVED</span></p>
+                <p style={{ margin: '5px 0' }}><strong>Merchant ID:</strong> {merchantData.merchantId}</p>
+                <p style={{ margin: '5px 0' }}><strong>Business Name:</strong> {merchantData.application.businessName}</p>
+              </div>
+              <div style={{ textAlign: 'right', fontSize: '12px', color: '#666' }}>
+                <p>Applied: {new Date(merchantData.application.appliedAt).toLocaleDateString()}</p>
+                {merchantData.application.approvedAt && (
+                  <p>Approved: {new Date(merchantData.application.approvedAt).toLocaleDateString()}</p>
+                )}
+              </div>
+            </div>
           </div>
 
           {!isEditing ? (

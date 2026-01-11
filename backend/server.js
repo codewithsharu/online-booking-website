@@ -232,8 +232,11 @@ app.post('/api/merchant/apply', verifyToken, (req, res) => {
       pincode,
       area,
       fullAddress,
-      status: 'pending',
+      status: 'pending', // pending, approved, rejected
       appliedAt: new Date().toISOString(),
+      approvedAt: null,
+      rejectedAt: null,
+      rejectionReason: null,
       merchantId: null
     };
     
@@ -331,6 +334,7 @@ app.post('/api/admin/merchants/reject', verifyToken, (req, res) => {
     }
     
     application.status = 'rejected';
+    application.rejectedAt = new Date().toISOString();
     application.rejectedAt = new Date().toISOString();
     application.rejectionReason = reason || 'Not specified';
     
