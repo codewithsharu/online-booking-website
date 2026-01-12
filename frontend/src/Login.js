@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Input } from 'antd';
 
 // Use environment variable from .env (REACT_APP_API_URL)
 // For mobile testing: set REACT_APP_API_URL=http://YOUR_PC_IP:3000 in .env
@@ -8,7 +9,7 @@ function Login() {
   const [step, setStep] = useState('phone');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
-  const [notify, setNotify] = useState(false);
+  const [notify, setNotify] = useState(false); // repurposed as accept & agree
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
@@ -185,8 +186,9 @@ function Login() {
         {/* Phone Step */}
         {step === 'phone' && (
           <div className="login-form fade-in">
+            <img src="/assets/login.svg" alt="Login" className="login-hero" />
             <h1 className="login-title">Login / Signup</h1>
-            
+
             <div className="phone-input-group">
               <div className="country-code">
                 <img src="/assets/flag.png" alt="IN" className="country-flag" />
@@ -210,28 +212,21 @@ function Login() {
               />
             </div>
 
-            <label className="checkbox-label">
-              <input 
-                type="checkbox" 
-                checked={notify}
-                onChange={(e) => setNotify(e.target.checked)}
-              />
-              <span>Notify me for any updates & offers</span>
-            </label>
+              {/* Accept & Agree checkbox (required) now below the number input */}
+              <label className="checkbox-label" style={{marginBottom: '12px'}}>
+                <input 
+                  type="checkbox" 
+                  checked={notify}
+                  onChange={(e) => setNotify(e.target.checked)}
+                />
+                <span>I accept and agree to the Privacy Policy & Terms.</span>
+              </label>
 
             {message && <p className="error-msg">{message}</p>}
 
-            <button onClick={sendOTP} disabled={loading || phone.length !== 10} className="submit-btn">
+            <button onClick={sendOTP} disabled={loading || phone.length !== 10 || !notify} className="submit-btn">
               {loading ? 'Sending...' : 'Submit'}
             </button>
-
-            <div className="login-footer">
-              <p className="policy-text">
-                I accept that I have read & understood Appointment Booking's<br/>
-                <button type="button" className="policy-link">Privacy Policy and T&Cs.</button>
-              </p>
-              <button type="button" className="trouble-link">Trouble logging in?</button>
-            </div>
           </div>
         )}
 
@@ -241,32 +236,35 @@ function Login() {
             <h1 className="login-title">Verify OTP</h1>
             <p className="otp-subtitle">Enter 6 digit verification code sent to +91{phone}</p>
             
-            <input
-              type="tel"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              placeholder="000000"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              onKeyPress={(e) => e.key === 'Enter' && verifyOTP()}
-              className="otp-input"
-              maxLength="6"
-            />
+            <div className="otp-input-wrapper">
+              <Input.OTP
+                length={6}
+                size="large"
+                value={otp}
+                onChange={(text) => setOtp((text || '').replace(/\D/g, '').slice(0, 6))}
+                variant="filled"
+                autoFocus
+              />
+            </div>
 
                 {message && <p className="error-msg">{message}</p>}
 
-                <button onClick={verifyOTP} disabled={loading} className="submit-btn">
+                <button onClick={verifyOTP} disabled={loading || otp.length !== 6} className="submit-btn">
                   {loading ? 'Verifying...' : 'Verify OTP'}
                 </button>
 
                 <div className="resend-row">
-                  {!cooldown ? (
-                    <button type="button" className="resend-btn" onClick={resendOTP} disabled={resendLoading} aria-disabled={resendLoading}>
-                      {resendLoading ? 'Resending…' : 'Resend Code'}
-                    </button>
-                  ) : (
-                    <p className="resend-text">Resend in {remaining}s</p>
-                  )}
+                  <span className="resend-hint">Didn't receive the code?</span>
+                  <button
+                    type="button"
+                    className="resend-link-btn"
+                    onClick={resendOTP}
+                    disabled={resendLoading || cooldown}
+                    aria-disabled={resendLoading || cooldown}
+                  >
+                    {resendLoading ? 'Resending…' : 'Resend'}
+                  </button>
+                  {cooldown && <span className="resend-timer">{remaining}s</span>}
                 </div>
               </div>
             )}
