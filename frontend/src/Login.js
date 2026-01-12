@@ -62,6 +62,13 @@ function Login() {
         setMessage('');
         setCooldown(true);
         setRemaining(60);
+        
+        // Auto-fill OTP for test accounts
+        if (data.isTestAccount) {
+          setOtp('111111');
+          setMessage('🧪 Test account detected - OTP pre-filled (111111)');
+        }
+        
         // For testing: show OTP if returned by server
         if (data.otp) {
           console.log('🔐 TEST OTP (from server):', data.otp);
@@ -217,6 +224,19 @@ function Login() {
             <button onClick={sendOTP} disabled={loading || phone.length !== 10} className="submit-btn">
               {loading ? 'Sending...' : 'Submit'}
             </button>
+
+            <div className="test-accounts-info" style={{
+              marginTop: '20px',
+              padding: '12px',
+              backgroundColor: '#f0f9ff',
+              border: '1px solid #bae6fd',
+              borderRadius: '8px',
+              fontSize: '13px'
+            }}>
+              <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', color: '#0369a1' }}>🧪 Test Accounts (No OTP Required)</p>
+              <p style={{ margin: '4px 0', color: '#0c4a6e' }}>• User: <strong>7816072521</strong> (OTP: 111111)</p>
+              <p style={{ margin: '4px 0', color: '#0c4a6e' }}>• Merchant: <strong>7816072522</strong> (OTP: 111111)</p>
+            </div>
 
             <div className="login-footer">
               <p className="policy-text">

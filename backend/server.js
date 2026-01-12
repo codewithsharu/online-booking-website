@@ -42,6 +42,12 @@ const SMS_SENDER_ID = process.env.SMS_SENDER_ID || 'SMSHUB';
 const SMS_GWID = process.env.SMS_GWID || '2';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
+// Test accounts (bypass OTP for testing)
+const TEST_ACCOUNTS = {
+  '7816072521': { role: 'user', name: 'Test User' },
+  '7816072522': { role: 'merchant', name: 'Test Merchant', merchantId: 'TEST_MERCHANT_001' }
+};
+
 // Approved SMS template (must match provider's template)
 const SMS_TEMPLATE = 'Welcome to the xyz powered by SMSINDIAHUB. Your OTP for registration is {{OTP}}';
 
@@ -113,6 +119,17 @@ app.post('/api/send-otp', async (req, res) => {
     const { phone } = req.body;
     const normalizedPhone = normalizePhone(phone);
 
+    // Check if it's a test account - bypass OTP
+    if (TEST_ACCOUNTS[normalizedPhone]) {
+      console.log(`🧪 Test account detected: ${normalizedPhone} - Using bypass OTP: 111111`);
+      OTPService.saveOTP(normalizedPhone, '111111');
+      return res.json({ 
+        success: true, 
+        message: 'OTP sent successfully (Test Account)',
+        isTestAccount: true
+      });
+    }
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     OTPService.saveOTP(normalizedPhone, otp);
 
@@ -172,13 +189,68 @@ app.post('/api/verify-otp', async (req, res) => {
     let isFirstTime = false;
     
     if (!user) {
-      user = await User.create({
-        phone: normalizedPhone,
-        role: 'user',
-        name: null
-      });
-      isFirstTime = true;
-      console.log(`✨ New user created: ${normalizedPhone}`);
+      // Check if it's a test account
+      const testAccount = TEST_ACCOUNTS[normalizedPhone];
+      
+      if (testAccount) {
+        // Create test account with pre-filled data
+        user = await User.create({
+          phone: normalizedPhone,
+          role: testAccount.role,
+          name: testAccount.name,
+          merchantId: testAccount.merchantId || null
+        });
+        
+        console.log(`🧪 Test account created: ${normalizedPhone} (${testAccount.role})`);
+        
+        // If merchant test account, create approved application and profile
+        if (testAccount.role === 'merchant' && testAccount.merchantId) {
+          // Create approved merchant application
+          const existingApp = await MerchantApplication.findOne({ phone: normalizedPhone });
+          if (!existingApp) {
+            await MerchantApplication.create({
+              phone: normalizedPhone,
+              businessName: 'Test Business',
+              businessType: 'Test Type',
+              address: 'Test Address',
+              status: 'approved',
+              approvedAt: new Date(),
+              rejectionReason: null
+            });
+            console.log(`✅ Test merchant application created and approved`);
+          }
+          
+          // Create merchant profile
+          const existingProfile = await MerchantProfile.findOne({ merchantId: testAccount.merchantId });
+          if (!existingProfile) {
+            await MerchantProfile.create({
+              merchantId: testAccount.merchantId,
+              phone: normalizedPhone,
+              businessName: 'Test Business',
+              ownerName: testAccount.name,
+              category: 'Testing',
+              description: 'Test merchant account for development',
+              address: 'Test Address, Test City',
+              email: 'test@merchant.com',
+              website: null,
+              services: ['Test Service 1', 'Test Service 2'],
+              pricing: 'Contact for pricing',
+              images: [],
+              isActive: true
+            });
+            console.log(`✅ Test merchant profile created`);
+          }
+        }
+      } else {
+        // Regular new user
+        user = await User.create({
+          phone: normalizedPhone,
+          role: 'user',
+          name: null
+        });
+        isFirstTime = true;
+        console.log(`✨ New user created: ${normalizedPhone}`);
+      }
     }
 
     // Check if user has a name
