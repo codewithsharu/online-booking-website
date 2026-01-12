@@ -179,7 +179,18 @@ app.post('/api/verify-otp', async (req, res) => {
       return res.status(400).json({ error: 'Phone and OTP required' });
     }
 
-    const isValid = OTPService.verifyOTP(normalizedPhone, otp);
+    // Check if it's a test account - accept OTP 111111
+    const testAccount = TEST_ACCOUNTS[normalizedPhone];
+    let isValid = false;
+    
+    if (testAccount && otp === '111111') {
+      isValid = true;
+      console.log(`🧪 Test account OTP accepted: ${normalizedPhone}`);
+    } else {
+      // Regular OTP verification
+      isValid = OTPService.verifyOTP(normalizedPhone, otp);
+    }
+    
     if (!isValid) {
       return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
@@ -189,9 +200,6 @@ app.post('/api/verify-otp', async (req, res) => {
     let isFirstTime = false;
     
     if (!user) {
-      // Check if it's a test account
-      const testAccount = TEST_ACCOUNTS[normalizedPhone];
-      
       if (testAccount) {
         // Create test account with pre-filled data
         user = await User.create({
@@ -215,11 +223,9 @@ app.post('/api/verify-otp', async (req, res) => {
               address: 'Test Address',
               status: 'approved',
               approvedAt: new Date(),
-              rejectionReason: null,
-              merchantId: testAccount.merchantId,
-              isActive: true
+              rejectionReason: null
             });
-            console.log(`✅ Test merchant application created and approved with merchantId: ${testAccount.merchantId}`);
+            console.log(`✅ Test merchant application created and approved`);
           }
           
           // Create merchant profile

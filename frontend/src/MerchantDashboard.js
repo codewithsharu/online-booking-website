@@ -63,7 +63,7 @@ function MerchantDashboard() {
       setMerchantData(statusData);
 
       // If approved, fetch profile
-      if (statusData.status === 'approved') {
+      if (statusData.approved) {
         const profileResponse = await fetch(`${API_URL}/merchant/profile`, {
           headers: {
             'Authorization': `Bearer ${token}`
