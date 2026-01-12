@@ -240,7 +240,7 @@ merchantProfileSchema.index({ tags: 1 });
 merchantProfileSchema.index({ isFeatured: -1, 'stats.rating': -1 });
 
 // Pre-save hook to mark profile as complete
-merchantProfileSchema.pre('save', function(next) {
+merchantProfileSchema.pre('save', function() {
   const requiredFields = [
     this.shopName,
     this.shopCategory,
@@ -253,7 +253,6 @@ merchantProfileSchema.pre('save', function(next) {
   ];
   
   this.isProfileComplete = requiredFields.every(field => field != null && field !== '');
-  next();
 });
 
 module.exports = mongoose.model('MerchantProfile', merchantProfileSchema);
