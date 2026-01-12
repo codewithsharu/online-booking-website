@@ -29,8 +29,7 @@ const merchantProfileSchema = new mongoose.Schema({
   merchantId: {
     type: String,
     required: true,
-    unique: true,
-    index: true
+    unique: true
   },
   phone: {
     type: String,
@@ -234,7 +233,6 @@ const merchantProfileSchema = new mongoose.Schema({
 });
 
 // Indexes for efficient queries
-merchantProfileSchema.index({ merchantId: 1, isActive: 1 });
 merchantProfileSchema.index({ 'location.pincode': 1, shopCategory: 1 });
 merchantProfileSchema.index({ 'location.area': 1, isActive: 1 });
 merchantProfileSchema.index({ shopName: 'text', shopDescription: 'text' });

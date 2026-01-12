@@ -23,8 +23,7 @@ const userSchema = new mongoose.Schema({
   merchantId: {
     type: String,
     default: null,
-    sparse: true,
-    index: true
+    sparse: true
   },
   isActive: {
     type: Boolean,

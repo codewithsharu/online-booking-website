@@ -66,8 +66,7 @@ const merchantApplicationSchema = new mongoose.Schema({
   merchantId: {
     type: String,
     default: null,
-    sparse: true,
-    index: true
+    sparse: true
   },
   // Timestamps for traceability
   appliedAt: {
@@ -103,17 +102,18 @@ const merchantApplicationSchema = new mongoose.Schema({
 // Compound indexes for efficient queries
 merchantApplicationSchema.index({ phone: 1, status: 1 });
 merchantApplicationSchema.index({ status: 1, appliedAt: -1 });
-merchantApplicationSchema.index({ merchantId: 1 }, { sparse: true });
 
-// Pre-save hook to update location fields
-merchantApplicationSchema.pre('save', function(next) {
-  if (this.isModified('location.pincode') || this.isModified('location.area') || this.isModified('location.fullAddress')) {
+// Pre-save hook - simplified
+merchantApplicationSchema.pre('save', async function(next) {
+  try {
     // Ensure location object exists
     if (!this.location) {
       this.location = {};
     }
+    next();
+  } catch (error) {
+    next(error);
   }
-  next();
 });
 
 module.exports = mongoose.model('MerchantApplication', merchantApplicationSchema);
