@@ -127,6 +127,15 @@ app.post('/api/send-otp', async (req, res) => {
     console.log(`📱 OTP sent to ${normalizedPhone}: ${otp}`);
     console.log(`📤 SMS API response [${smsResponse.status}]: ${smsData}`);
     
+    // Check if SMS actually failed (provider returns "Failed" in response)
+    if (smsData && (smsData.includes('Failed') || smsData.includes('insufficient'))) {
+      console.error('❌ SMS delivery failed:', smsData);
+      return res.status(500).json({ 
+        error: 'Failed to send SMS',
+        details: smsData.includes('insufficient') ? 'Insufficient SMS credits' : 'SMS delivery failed'
+      });
+    }
+    
     res.json({ 
       success: true, 
       message: 'OTP sent successfully',
