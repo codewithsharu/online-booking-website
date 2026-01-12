@@ -225,19 +225,6 @@ function Login() {
               {loading ? 'Sending...' : 'Submit'}
             </button>
 
-            <div className="test-accounts-info" style={{
-              marginTop: '20px',
-              padding: '12px',
-              backgroundColor: '#f0f9ff',
-              border: '1px solid #bae6fd',
-              borderRadius: '8px',
-              fontSize: '13px'
-            }}>
-              <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', color: '#0369a1' }}>🧪 Test Accounts (No OTP Required)</p>
-              <p style={{ margin: '4px 0', color: '#0c4a6e' }}>• User: <strong>7816072521</strong> (OTP: 111111)</p>
-              <p style={{ margin: '4px 0', color: '#0c4a6e' }}>• Merchant: <strong>7816072522</strong> (OTP: 111111)</p>
-            </div>
-
             <div className="login-footer">
               <p className="policy-text">
                 I accept that I have read & understood Appointment Booking's<br/>
