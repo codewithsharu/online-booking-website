@@ -241,7 +241,9 @@ function Login() {
                 length={6}
                 size="large"
                 value={otp}
-                onChange={(text) => setOtp((text || '').replace(/\D/g, '').slice(0, 6))}
+                formatter={(str = '') => str.replace(/\D/g, '')}
+                onChange={(text = '') => setOtp(text)}
+                inputMode="numeric"
                 variant="filled"
                 autoFocus
               />
