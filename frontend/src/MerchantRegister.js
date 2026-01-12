@@ -210,36 +210,6 @@ function MerchantRegister() {
     }
   };
 
-  const skipOTPForTestAccount = async () => {
-    // For test account, directly verify with 111111 OTP
-    const trimmedPhone = phone.trim();
-    if (trimmedPhone === '7816072522') {
-      console.log('🧪 Test merchant account - auto-verifying with OTP 111111');
-      setLoading(true);
-      try {
-        const res = await fetch(`${API_URL}/verify-otp`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: '91' + trimmedPhone, otp: '111111' })
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-          setToken(data.token);
-          setStep('form');
-          setMessage('');
-          console.log('✅ Test account auto-verified');
-        } else {
-          setMessage(data.error || 'Auto-verification failed');
-        }
-      } catch (error) {
-        setMessage('Network error: ' + error.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
