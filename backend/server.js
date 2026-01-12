@@ -713,6 +713,74 @@ app.get('/api/merchant/profile', verifyToken, async (req, res) => {
   }
 });
 
+// Update merchant profile
+app.put('/api/merchant/profile', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can update profiles' });
+    }
+
+    const { 
+      shopName, shopCategory, shopDescription,
+      pincode, area, fullAddress, city, state,
+      openingTime, closingTime, workingDays,
+      slotDuration, advanceBookingDays, simultaneousBookings,
+      contact, socialMedia, tags
+    } = req.body;
+    
+    // Find existing profile
+    let profile = await MerchantProfile.findOne({ merchantId: req.user.merchantId });
+    
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    // Update fields
+    if (shopName) profile.shopName = shopName.trim();
+    if (shopCategory) profile.shopCategory = shopCategory;
+    if (shopDescription) profile.shopDescription = shopDescription.trim();
+    
+    if (pincode || area || fullAddress) {
+      profile.location = {
+        ...profile.location,
+        pincode: pincode || profile.location.pincode,
+        area: area ? area.trim() : profile.location.area,
+        fullAddress: fullAddress ? fullAddress.trim() : profile.location.fullAddress,
+        city: city ? city.trim() : profile.location.city,
+        state: state ? state.trim() : profile.location.state
+      };
+    }
+    
+    if (openingTime || closingTime || workingDays) {
+      profile.workingHours = {
+        openingTime: openingTime || profile.workingHours.openingTime,
+        closingTime: closingTime || profile.workingHours.closingTime,
+        workingDays: workingDays || profile.workingHours.workingDays
+      };
+    }
+    
+    if (slotDuration) profile.slotDuration = parseInt(slotDuration);
+    if (advanceBookingDays) profile.advanceBookingDays = parseInt(advanceBookingDays);
+    if (simultaneousBookings) profile.simultaneousBookings = parseInt(simultaneousBookings);
+    
+    if (contact) profile.contact = { ...profile.contact, ...contact };
+    if (socialMedia) profile.socialMedia = { ...profile.socialMedia, ...socialMedia };
+    if (tags) profile.tags = tags;
+    
+    await profile.save();
+    
+    console.log(`✅ Merchant profile updated: ${req.user.merchantId}`);
+    res.json({ 
+      success: true, 
+      message: 'Profile updated successfully', 
+      profile 
+    });
+  } catch (error) {
+    console.error('Error updating merchant profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
 // Get merchant profile by ID (public)
 app.get('/api/merchant/profile/:merchantId', async (req, res) => {
   try {
