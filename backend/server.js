@@ -520,6 +520,20 @@ app.post('/api/admin/merchants/approve', verifyToken, async (req, res) => {
         area: application.location.area,
         fullAddress: application.location.fullAddress
       },
+      applicationSnapshot: {
+        ownerName: application.ownerName,
+        phone: application.phone,
+        businessName: application.businessName,
+        businessCategory: application.businessCategory,
+        businessDescription: application.businessDescription,
+        location: {
+          pincode: application.location.pincode,
+          area: application.location.area,
+          fullAddress: application.location.fullAddress
+        },
+        appliedAt: application.appliedAt,
+        approvedAt: application.approvedAt
+      },
       workingHours: {
         openingTime: '09:00',
         closingTime: '18:00',
@@ -774,6 +788,68 @@ app.put('/api/merchant/profile', verifyToken, async (req, res) => {
       success: true, 
       message: 'Profile updated successfully', 
       profile 
+    });
+  } catch (error) {
+    console.error('Error updating merchant profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// Update merchant profile (only editable fields)
+app.put('/api/merchant/profile', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can update profiles' });
+    }
+
+    const {
+      shopImage,
+      openingTime,
+      closingTime,
+      workingDays,
+      slotDuration,
+      advanceBookingDays,
+      simultaneousBookings,
+      services,
+      contact,
+      socialMedia,
+      tags
+    } = req.body;
+
+    // Find existing profile
+    const profile = await MerchantProfile.findOne({ merchantId: req.user.merchantId });
+
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    // Only update editable fields (keep application snapshot immutable)
+    if (shopImage) profile.shopImage = shopImage;
+
+    if (openingTime || closingTime || workingDays) {
+      profile.workingHours = {
+        openingTime: openingTime || profile.workingHours.openingTime,
+        closingTime: closingTime || profile.workingHours.closingTime,
+        workingDays: workingDays || profile.workingHours.workingDays
+      };
+    }
+
+    if (slotDuration) profile.slotDuration = parseInt(slotDuration, 10);
+    if (advanceBookingDays) profile.advanceBookingDays = parseInt(advanceBookingDays, 10);
+    if (simultaneousBookings) profile.simultaneousBookings = parseInt(simultaneousBookings, 10);
+
+    if (Array.isArray(services)) profile.services = services;
+    if (contact) profile.contact = { ...profile.contact, ...contact };
+    if (socialMedia) profile.socialMedia = { ...profile.socialMedia, ...socialMedia };
+    if (tags) profile.tags = tags;
+
+    await profile.save();
+
+    console.log(`✅ Merchant profile updated (editable fields): ${req.user.merchantId}`);
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      profile
     });
   } catch (error) {
     console.error('Error updating merchant profile:', error);
