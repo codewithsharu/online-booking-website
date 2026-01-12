@@ -14,13 +14,9 @@ function MerchantRegister() {
   const [message, setMessage] = useState('');
   const [formData, setFormData] = useState({
     ownerName: '',
-    email: '',
-    businessName: '',
-    businessCategory: '',
-    businessDescription: '',
+    shopName: '',
     pincode: '',
-    area: '',
-    fullAddress: ''
+    shopAddress: ''
   });
   const [submitted, setSubmitted] = useState(false);
 
@@ -220,13 +216,20 @@ function MerchantRegister() {
     setMessage('');
 
     try {
+      const payload = {
+        ownerName: formData.ownerName,
+        shopName: formData.shopName,
+        pincode: formData.pincode,
+        shopAddress: formData.shopAddress
+      };
+
       const res = await fetch(`${API_URL}/merchant/apply`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       const data = await res.json();
@@ -386,13 +389,12 @@ function MerchantRegister() {
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '20px auto' }}>
       <h1>Merchant Registration</h1>
-      <p>Fill out the form below to register your business</p>
+      <p>Only four fields are needed to apply.</p>
 
       <form onSubmit={handleSubmit}>
-        {/* SECTION 1: OWNER DETAILS */}
         <fieldset style={{ border: '1px solid #ddd', padding: '15px', marginBottom: '20px' }}>
-          <legend><strong>Section 1: Owner Details</strong></legend>
-          
+          <legend><strong>Application Details</strong></legend>
+
           <label>
             Owner Full Name *
             <input
@@ -406,72 +408,17 @@ function MerchantRegister() {
           </label>
 
           <label>
-            Email ID (Optional)
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              style={{ width: '100%', padding: '8px', margin: '5px 0 15px 0' }}
-            />
-          </label>
-
-          <p style={{ fontSize: '12px', color: '#666' }}>
-            Note: Your mobile number is already verified
-          </p>
-        </fieldset>
-
-        {/* SECTION 2: BUSINESS DETAILS */}
-        <fieldset style={{ border: '1px solid #ddd', padding: '15px', marginBottom: '20px' }}>
-          <legend><strong>Section 2: Business Details</strong></legend>
-          
-          <label>
-            Business / Shop Name *
+            Shop Name *
             <input
               type="text"
-              name="businessName"
-              value={formData.businessName}
+              name="shopName"
+              value={formData.shopName}
               onChange={handleChange}
               required
               style={{ width: '100%', padding: '8px', margin: '5px 0 15px 0' }}
             />
           </label>
 
-          <label>
-            Business Category *
-            <select
-              name="businessCategory"
-              value={formData.businessCategory}
-              onChange={handleChange}
-              required
-              style={{ width: '100%', padding: '8px', margin: '5px 0 15px 0' }}
-            >
-              <option value="">Select Category</option>
-              <option value="Barber">Barber</option>
-              <option value="Salon">Salon</option>
-              <option value="Clinic">Clinic</option>
-              <option value="Repair">Repair</option>
-              <option value="Other">Other</option>
-            </select>
-          </label>
-
-          <label>
-            Business Description
-            <textarea
-              name="businessDescription"
-              value={formData.businessDescription}
-              onChange={handleChange}
-              placeholder="Short description about your services"
-              rows="3"
-              style={{ width: '100%', padding: '8px', margin: '5px 0 15px 0' }}
-            />
-          </label>
-        </fieldset>
-
-        {/* SECTION 3: LOCATION DETAILS */}
-        <fieldset style={{ border: '1px solid #ddd', padding: '15px', marginBottom: '20px' }}>
-          <legend><strong>Section 3: Location Details</strong></legend>
-          
           <label>
             Pincode *
             <input
@@ -487,22 +434,10 @@ function MerchantRegister() {
           </label>
 
           <label>
-            Area / Locality Name *
-            <input
-              type="text"
-              name="area"
-              value={formData.area}
-              onChange={handleChange}
-              required
-              style={{ width: '100%', padding: '8px', margin: '5px 0 15px 0' }}
-            />
-          </label>
-
-          <label>
-            Full Address (Street, Landmark) *
+            Shop Address *
             <textarea
-              name="fullAddress"
-              value={formData.fullAddress}
+              name="shopAddress"
+              value={formData.shopAddress}
               onChange={handleChange}
               required
               rows="3"

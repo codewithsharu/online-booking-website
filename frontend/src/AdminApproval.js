@@ -56,7 +56,7 @@ function AdminApproval() {
     }
   };
 
-  const handleApprove = async (applicationId) => {
+  const handleApprove = async (phone) => {
     if (!window.confirm('Approve this merchant application?')) return;
 
     try {
@@ -67,7 +67,7 @@ function AdminApproval() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ applicationId })
+        body: JSON.stringify({ phone })
       });
 
       const data = await res.json();
@@ -82,7 +82,7 @@ function AdminApproval() {
     }
   };
 
-  const handleReject = async (applicationId) => {
+  const handleReject = async (phone) => {
     const reason = window.prompt('Enter rejection reason (optional):');
     if (reason === null) return; // User cancelled
 
@@ -94,7 +94,7 @@ function AdminApproval() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ applicationId, reason })
+        body: JSON.stringify({ phone, reason })
       });
 
       const data = await res.json();
@@ -125,27 +125,23 @@ function AdminApproval() {
           <p><strong>{applications.length}</strong> pending application(s)</p>
           
           {applications.map(app => (
-            <div key={app._id || app.applicationId} style={{ 
+            <div key={app.phone} style={{ 
               border: '1px solid #ddd', 
               padding: '15px', 
               marginBottom: '20px',
               backgroundColor: '#f9f9f9'
             }}>
-              <h3>{app.businessName}</h3>
+              <h3>{app.shopName}</h3>
               
               <div style={{ marginBottom: '10px' }}>
                 <strong>Owner:</strong> {app.ownerName}<br />
                 <strong>Phone:</strong> {app.phone}<br />
-                {app.email && <><strong>Email:</strong> {app.email}<br /></>}
-                <strong>Category:</strong> {app.businessCategory}<br />
-                {app.businessDescription && <><strong>Description:</strong> {app.businessDescription}<br /></>}
               </div>
 
               <div style={{ marginBottom: '10px' }}>
                 <strong>Location:</strong><br />
-                Pincode: {app.location?.pincode || app.pincode}<br />
-                Area: {app.location?.area || app.area}<br />
-                Address: {app.location?.fullAddress || app.fullAddress}
+                Pincode: {app.pincode}<br />
+                Shop Address: {app.shopAddress}
               </div>
 
               <div style={{ marginBottom: '10px' }}>
@@ -154,7 +150,7 @@ function AdminApproval() {
 
               <div>
                 <button 
-                  onClick={() => handleApprove(app.applicationId)}
+                  onClick={() => handleApprove(app.phone)}
                   style={{
                     padding: '10px 20px',
                     marginRight: '10px',
@@ -168,7 +164,7 @@ function AdminApproval() {
                   Approve
                 </button>
                 <button 
-                  onClick={() => handleReject(app.applicationId)}
+                  onClick={() => handleReject(app.phone)}
                   style={{
                     padding: '10px 20px',
                     backgroundColor: '#ef4444',

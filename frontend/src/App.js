@@ -8,6 +8,7 @@ import MerchantRegister from './MerchantRegister';
 import MerchantDashboard from './MerchantDashboard';
 import AdminApproval from './AdminApproval';
 import Clear from './Clear';
+import Search from './Search';
 import ProtectedRoute from './ProtectedRoute';
 
 function App() {
@@ -83,6 +84,12 @@ function App() {
               <AdminApproval />
             </ProtectedRoute>
           }
+        />
+
+        {/* Search merchants - public route */}
+        <Route 
+          path="/search" 
+          element={<Search />}
         />
 
         {/* Clear browser session data */}

@@ -9,8 +9,7 @@ require('dotenv').config();
 
 // Import Models
 const User = require('./models/User');
-const MerchantApplication = require('./models/MerchantApplication');
-const MerchantProfile = require('./models/MerchantProfile');
+const MerchantInfo = require('./models/MerchantInfo');
 const OTPService = require('./models/OTPService');
 
 const app = express();
@@ -214,40 +213,33 @@ app.post('/api/verify-otp', async (req, res) => {
         // If merchant test account, create approved application and profile
         if (testAccount.role === 'merchant' && testAccount.merchantId) {
           // Create approved merchant application
-          const existingApp = await MerchantApplication.findOne({ phone: normalizedPhone });
+          const existingApp = await MerchantInfo.findOne({ phone: normalizedPhone });
+          let applicationIdForTest = existingApp?.applicationId || Date.now().toString();
+
           if (!existingApp) {
-            await MerchantApplication.create({
+            await MerchantInfo.create({
               phone: normalizedPhone,
-              businessName: 'Test Business',
-              businessType: 'Test Type',
-              address: 'Test Address',
+              merchantId: testAccount.merchantId,
               status: 'approved',
+              ownerName: testAccount.name,
+              shopName: 'Test Business',
+              pincode: '560001',
+              shopAddress: 'Test Address',
               approvedAt: new Date(),
-              rejectionReason: null
+              processedBy: 'admin',
+              shopCategory: 'Testing'
             });
             console.log(`✅ Test merchant application created and approved`);
+          } else if (existingApp.status !== 'approved' || !existingApp.merchantId) {
+            existingApp.status = 'approved';
+            existingApp.merchantId = testAccount.merchantId;
+            existingApp.approvedAt = new Date();
+            existingApp.processedBy = 'admin';
+            await existingApp.save();
           }
           
-          // Create merchant profile
-          const existingProfile = await MerchantProfile.findOne({ merchantId: testAccount.merchantId });
-          if (!existingProfile) {
-            await MerchantProfile.create({
-              merchantId: testAccount.merchantId,
-              phone: normalizedPhone,
-              businessName: 'Test Business',
-              ownerName: testAccount.name,
-              category: 'Testing',
-              description: 'Test merchant account for development',
-              address: 'Test Address, Test City',
-              email: 'test@merchant.com',
-              website: null,
-              services: ['Test Service 1', 'Test Service 2'],
-              pricing: 'Contact for pricing',
-              images: [],
-              isActive: true
-            });
-            console.log(`✅ Test merchant profile created`);
-          }
+          // Create merchant details snapshot with editable fields placeholder
+          // No separate details document now; data stored in MerchantInfo
         }
       } else {
         // Regular new user
@@ -337,46 +329,47 @@ app.post('/api/save-name', verifyToken, async (req, res) => {
 // Submit merchant application
 app.post('/api/merchant/apply', verifyToken, async (req, res) => {
   try {
-    const { ownerName, email, businessName, businessCategory, businessDescription, pincode, area, fullAddress } = req.body;
+    const { ownerName, shopName, pincode, shopAddress } = req.body;
     
-    if (!ownerName || !businessName || !businessCategory || !pincode || !area || !fullAddress) {
+    if (!ownerName || !shopName || !pincode || !shopAddress) {
       return res.status(400).json({ error: 'All required fields must be filled' });
     }
 
-    // Check if user already has an application
-    const existingApp = await MerchantApplication.findOne({ phone: req.user.phone, isActive: true });
-    if (existingApp) {
-      return res.status(400).json({ 
-        error: 'You already have an active application',
-        status: existingApp.status 
+    // If info exists, update to pending with application fields; else create
+    let info = await MerchantInfo.findOne({ phone: req.user.phone });
+    if (!info) {
+      info = await MerchantInfo.create({
+        phone: req.user.phone,
+        ownerName: ownerName.trim(),
+        shopName: shopName.trim(),
+        pincode: pincode.trim(),
+        shopAddress: shopAddress.trim(),
+        status: 'pending',
+        appliedAt: new Date()
       });
+    } else {
+      info.ownerName = ownerName.trim();
+      info.shopName = shopName.trim();
+      info.pincode = pincode.trim();
+      info.shopAddress = shopAddress.trim();
+      info.status = 'pending';
+      info.appliedAt = new Date();
+      info.rejectedAt = null;
+      info.rejectionReason = null;
+      await info.save();
     }
 
-    const applicationId = Date.now().toString();
-    
-    const application = await MerchantApplication.create({
-      applicationId,
-      phone: req.user.phone,
-      ownerName: ownerName.trim(),
-      email: email?.trim() || '',
-      businessName: businessName.trim(),
-      businessCategory,
-      businessDescription: businessDescription?.trim() || '',
-      location: {
-        pincode,
-        area: area.trim(),
-        fullAddress: fullAddress.trim()
-      },
-      status: 'pending',
-      appliedAt: new Date()
-    });
+    // Ensure user's role is merchant (locked until approved via status)
+    await User.findOneAndUpdate(
+      { phone: req.user.phone },
+      { role: 'merchant', updatedAt: Date.now() }
+    );
 
-    console.log(`📝 Merchant application submitted: ${applicationId} by ${req.user.phone}`);
+    console.log(`📝 Merchant application submitted by ${req.user.phone}`);
     res.json({ 
       success: true, 
       message: 'Application submitted successfully', 
-      applicationId,
-      application 
+      application: info 
     });
   } catch (error) {
     console.error('Error submitting merchant application:', error);
@@ -387,10 +380,7 @@ app.post('/api/merchant/apply', verifyToken, async (req, res) => {
 // Get merchant application status
 app.get('/api/merchant/status', verifyToken, async (req, res) => {
   try {
-    const application = await MerchantApplication.findOne({ 
-      phone: req.user.phone,
-      isActive: true 
-    }).select('-__v').lean();
+    const application = await MerchantInfo.findOne({ phone: req.user.phone }).select('-__v').lean();
     
     if (!application) {
       return res.json({ hasApplication: false });
@@ -454,10 +444,7 @@ app.get('/api/admin/merchants/pending', verifyToken, async (req, res) => {
   }
   
   try {
-    const pending = await MerchantApplication.find({ 
-      status: 'pending',
-      isActive: true 
-    })
+    const pending = await MerchantInfo.find({ status: 'pending' })
     .sort({ appliedAt: -1 })
     .select('-__v')
     .lean();
@@ -476,9 +463,9 @@ app.post('/api/admin/merchants/approve', verifyToken, async (req, res) => {
   }
   
   try {
-    const { applicationId } = req.body;
+    const { phone } = req.body; // approve by phone
     
-    const application = await MerchantApplication.findOne({ applicationId });
+    const application = await MerchantInfo.findOne({ phone });
     if (!application) {
       return res.status(404).json({ error: 'Application not found' });
     }
@@ -507,47 +494,7 @@ app.post('/api/admin/merchants/approve', verifyToken, async (req, res) => {
       }
     );
 
-    // Create merchant profile with application data
-    await MerchantProfile.create({
-      merchantId,
-      phone: application.phone,
-      applicationId: application.applicationId,
-      shopName: application.businessName,
-      shopCategory: application.businessCategory,
-      shopDescription: application.businessDescription,
-      location: {
-        pincode: application.location.pincode,
-        area: application.location.area,
-        fullAddress: application.location.fullAddress
-      },
-      applicationSnapshot: {
-        ownerName: application.ownerName,
-        phone: application.phone,
-        businessName: application.businessName,
-        businessCategory: application.businessCategory,
-        businessDescription: application.businessDescription,
-        location: {
-          pincode: application.location.pincode,
-          area: application.location.area,
-          fullAddress: application.location.fullAddress
-        },
-        appliedAt: application.appliedAt,
-        approvedAt: application.approvedAt
-      },
-      workingHours: {
-        openingTime: '09:00',
-        closingTime: '18:00',
-        workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-      },
-      slotDuration: 30,
-      services: [],
-      contact: {
-        phone: application.phone,
-        email: application.email
-      }
-    });
-
-    console.log(`✅ Approved merchant application ${applicationId}, assigned ID: ${merchantId}`);
+    console.log(`✅ Approved merchant ${phone}, assigned ID: ${merchantId}`);
     res.json({ 
       success: true, 
       message: 'Application approved', 
@@ -567,9 +514,9 @@ app.post('/api/admin/merchants/reject', verifyToken, async (req, res) => {
   }
   
   try {
-    const { applicationId, reason } = req.body;
+    const { phone, reason } = req.body;
     
-    const application = await MerchantApplication.findOne({ applicationId });
+    const application = await MerchantInfo.findOne({ phone });
     if (!application) {
       return res.status(404).json({ error: 'Application not found' });
     }
@@ -631,179 +578,19 @@ app.post('/api/merchant/upload-image', verifyToken, upload.single('image'), asyn
   }
 });
 
-// Create or update merchant profile
+// Create or update merchant details (editable fields only)
 app.post('/api/merchant/profile', verifyToken, async (req, res) => {
   try {
     if (req.user.role !== 'merchant') {
       return res.status(403).json({ error: 'Only merchants can manage profiles' });
     }
 
-    const { 
-      shopName, shopCategory, shopDescription, shopImage,
-      pincode, area, fullAddress, city, state,
-      openingTime, closingTime, workingDays,
-      slotDuration, advanceBookingDays, simultaneousBookings,
-      services, contact, socialMedia, tags
-    } = req.body;
-    
-    // Validate required fields
-    if (!shopName || !shopCategory || !pincode || !area || !fullAddress || !openingTime || !closingTime || !slotDuration) {
-      return res.status(400).json({ error: 'All required fields must be filled' });
-    }
-
-    // Find or update profile
-    let profile = await MerchantProfile.findOne({ merchantId: req.user.merchantId });
-
-    if (profile) {
-      // Update existing profile
-      profile.shopName = shopName.trim();
-      profile.shopCategory = shopCategory;
-      profile.shopDescription = shopDescription?.trim();
-      profile.shopImage = shopImage;
-      
-      profile.location = {
-        pincode,
-        area: area.trim(),
-        fullAddress: fullAddress.trim(),
-        city: city?.trim(),
-        state: state?.trim()
-      };
-      
-      profile.workingHours = {
-        openingTime,
-        closingTime,
-        workingDays: workingDays || profile.workingHours.workingDays
-      };
-      
-      profile.slotDuration = parseInt(slotDuration);
-      profile.advanceBookingDays = advanceBookingDays || profile.advanceBookingDays;
-      profile.simultaneousBookings = simultaneousBookings || profile.simultaneousBookings;
-      
-      if (services) profile.services = services;
-      if (contact) profile.contact = { ...profile.contact, ...contact };
-      if (socialMedia) profile.socialMedia = { ...profile.socialMedia, ...socialMedia };
-      if (tags) profile.tags = tags;
-      
-      profile.updatedAt = Date.now();
-      await profile.save();
-
-      console.log(`✅ Profile updated for merchant ${req.user.merchantId}`);
-    } else {
-      // This shouldn't happen as profile is created on approval, but handle it
-      return res.status(404).json({ error: 'Profile not found. Please contact support.' });
-    }
-    
-    res.json({ 
-      success: true, 
-      message: 'Profile saved successfully', 
-      profile 
-    });
-  } catch (error) {
-    console.error('Error saving merchant profile:', error);
-    res.status(500).json({ error: 'Failed to save profile' });
-  }
-});
-
-// Get own merchant profile
-app.get('/api/merchant/profile', verifyToken, async (req, res) => {
-  try {
-    if (req.user.role !== 'merchant') {
-      return res.status(403).json({ error: 'Only merchants can access profiles' });
-    }
-
-    const profile = await MerchantProfile.findOne({ 
-      merchantId: req.user.merchantId,
-      isActive: true 
-    }).select('-__v').lean();
-    
-    if (!profile) {
-      return res.json({ hasProfile: false, merchantId: req.user.merchantId });
-    }
-    
-    res.json({ hasProfile: true, profile });
-  } catch (error) {
-    console.error('Error fetching merchant profile:', error);
-    res.status(500).json({ error: 'Failed to fetch profile' });
-  }
-});
-
-// Update merchant profile
-app.put('/api/merchant/profile', verifyToken, async (req, res) => {
-  try {
-    if (req.user.role !== 'merchant') {
-      return res.status(403).json({ error: 'Only merchants can update profiles' });
-    }
-
-    const { 
-      shopName, shopCategory, shopDescription,
-      pincode, area, fullAddress, city, state,
-      openingTime, closingTime, workingDays,
-      slotDuration, advanceBookingDays, simultaneousBookings,
-      contact, socialMedia, tags
-    } = req.body;
-    
-    // Find existing profile
-    let profile = await MerchantProfile.findOne({ merchantId: req.user.merchantId });
-    
-    if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
-    }
-
-    // Update fields
-    if (shopName) profile.shopName = shopName.trim();
-    if (shopCategory) profile.shopCategory = shopCategory;
-    if (shopDescription) profile.shopDescription = shopDescription.trim();
-    
-    if (pincode || area || fullAddress) {
-      profile.location = {
-        ...profile.location,
-        pincode: pincode || profile.location.pincode,
-        area: area ? area.trim() : profile.location.area,
-        fullAddress: fullAddress ? fullAddress.trim() : profile.location.fullAddress,
-        city: city ? city.trim() : profile.location.city,
-        state: state ? state.trim() : profile.location.state
-      };
-    }
-    
-    if (openingTime || closingTime || workingDays) {
-      profile.workingHours = {
-        openingTime: openingTime || profile.workingHours.openingTime,
-        closingTime: closingTime || profile.workingHours.closingTime,
-        workingDays: workingDays || profile.workingHours.workingDays
-      };
-    }
-    
-    if (slotDuration) profile.slotDuration = parseInt(slotDuration);
-    if (advanceBookingDays) profile.advanceBookingDays = parseInt(advanceBookingDays);
-    if (simultaneousBookings) profile.simultaneousBookings = parseInt(simultaneousBookings);
-    
-    if (contact) profile.contact = { ...profile.contact, ...contact };
-    if (socialMedia) profile.socialMedia = { ...profile.socialMedia, ...socialMedia };
-    if (tags) profile.tags = tags;
-    
-    await profile.save();
-    
-    console.log(`✅ Merchant profile updated: ${req.user.merchantId}`);
-    res.json({ 
-      success: true, 
-      message: 'Profile updated successfully', 
-      profile 
-    });
-  } catch (error) {
-    console.error('Error updating merchant profile:', error);
-    res.status(500).json({ error: 'Failed to update profile' });
-  }
-});
-
-// Update merchant profile (only editable fields)
-app.put('/api/merchant/profile', verifyToken, async (req, res) => {
-  try {
-    if (req.user.role !== 'merchant') {
-      return res.status(403).json({ error: 'Only merchants can update profiles' });
-    }
-
     const {
+      shopCategory,
+      shopDescription,
       shopImage,
+      city,
+      state,
       openingTime,
       closingTime,
       workingDays,
@@ -816,64 +603,213 @@ app.put('/api/merchant/profile', verifyToken, async (req, res) => {
       tags
     } = req.body;
 
-    // Find existing profile
-    const profile = await MerchantProfile.findOne({ merchantId: req.user.merchantId });
+    const details = await MerchantInfo.findOne({ phone: req.user.phone });
 
-    if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
+    if (!details) {
+      return res.status(404).json({ error: 'Merchant details not found. Please contact support.' });
     }
 
-    // Only update editable fields (keep application snapshot immutable)
-    if (shopImage) profile.shopImage = shopImage;
+    if (details.status !== 'approved') {
+      return res.status(403).json({ error: 'Profile editing is locked until approval' });
+    }
 
-    if (openingTime || closingTime || workingDays) {
-      profile.workingHours = {
-        openingTime: openingTime || profile.workingHours.openingTime,
-        closingTime: closingTime || profile.workingHours.closingTime,
-        workingDays: workingDays || profile.workingHours.workingDays
+    const existingWorkingHours = details.workingHours || {};
+    const existingLocation = details.location || {};
+    const existingContact = details.contact || {};
+    const existingSocial = details.socialMedia || {};
+
+    if (shopCategory) details.shopCategory = shopCategory;
+    if (shopDescription) details.shopDescription = shopDescription.trim();
+    if (shopImage) details.images = [shopImage];
+
+    if (city || state) {
+      details.location = {
+        city: city || existingLocation.city,
+        state: state || existingLocation.state
       };
     }
 
-    if (slotDuration) profile.slotDuration = parseInt(slotDuration, 10);
-    if (advanceBookingDays) profile.advanceBookingDays = parseInt(advanceBookingDays, 10);
-    if (simultaneousBookings) profile.simultaneousBookings = parseInt(simultaneousBookings, 10);
+    if (openingTime || closingTime || workingDays) {
+      details.workingHours = {
+        openingTime: openingTime || existingWorkingHours.openingTime,
+        closingTime: closingTime || existingWorkingHours.closingTime,
+        workingDays: workingDays || existingWorkingHours.workingDays
+      };
+    }
 
-    if (Array.isArray(services)) profile.services = services;
-    if (contact) profile.contact = { ...profile.contact, ...contact };
-    if (socialMedia) profile.socialMedia = { ...profile.socialMedia, ...socialMedia };
-    if (tags) profile.tags = tags;
+    if (slotDuration) details.slotDuration = parseInt(slotDuration, 10);
+    if (advanceBookingDays) details.advanceBookingDays = parseInt(advanceBookingDays, 10);
+    if (simultaneousBookings) details.simultaneousBookings = parseInt(simultaneousBookings, 10);
 
-    await profile.save();
+    if (Array.isArray(services)) {
+      details.services = services.map((svc) => {
+        if (typeof svc === 'string') {
+          return { name: svc };
+        }
+        if (svc && typeof svc === 'object') {
+          return {
+            name: svc.name,
+            price: svc.price,
+            duration: svc.duration,
+            description: svc.description,
+            isActive: svc.isActive !== undefined ? svc.isActive : true
+          };
+        }
+        return null;
+      }).filter(Boolean);
+    }
+    if (contact) details.contact = { ...existingContact, ...contact };
+    if (socialMedia) details.socialMedia = { ...existingSocial, ...socialMedia };
+    if (tags) details.tags = tags;
 
-    console.log(`✅ Merchant profile updated (editable fields): ${req.user.merchantId}`);
-    res.json({
-      success: true,
-      message: 'Profile updated successfully',
-      profile
+    await details.save();
+
+    console.log(`✅ Merchant details saved for ${req.user.merchantId}`);
+    res.json({ 
+      success: true, 
+      message: 'Details saved successfully', 
+      details 
     });
   } catch (error) {
-    console.error('Error updating merchant profile:', error);
-    res.status(500).json({ error: 'Failed to update profile' });
+    console.error('Error saving merchant details:', error);
+    res.status(500).json({ error: 'Failed to save merchant details' });
   }
 });
 
-// Get merchant profile by ID (public)
+// Get own merchant details (unified MerchantInfo)
+app.get('/api/merchant/profile', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can access profiles' });
+    }
+
+    const details = await MerchantInfo.findOne({ phone: req.user.phone }).select('-__v').lean();
+    
+    if (!details) {
+      return res.json({ hasProfile: false, merchantId: req.user.merchantId, status: 'pending' });
+    }
+    
+    res.json({ hasProfile: true, details });
+  } catch (error) {
+    console.error('Error fetching merchant profile:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// Update merchant profile (only editable fields)
+app.put('/api/merchant/profile', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can update profiles' });
+    }
+
+    const {
+      shopCategory,
+      shopDescription,
+      shopImage,
+      city,
+      state,
+      openingTime,
+      closingTime,
+      workingDays,
+      slotDuration,
+      advanceBookingDays,
+      simultaneousBookings,
+      services,
+      contact,
+      socialMedia,
+      tags
+    } = req.body;
+
+    // Find existing details (editable data store)
+    const details = await MerchantInfo.findOne({ phone: req.user.phone });
+
+    if (!details) {
+      return res.status(404).json({ error: 'Merchant details not found' });
+    }
+
+    if (details.status !== 'approved') {
+      return res.status(403).json({ error: 'Profile editing is locked until approval' });
+    }
+
+    const existingWorkingHours = details.workingHours || {};
+    const existingLocation = details.location || {};
+    const existingContact = details.contact || {};
+    const existingSocial = details.socialMedia || {};
+
+    if (req.body.shopName) details.shopName = req.body.shopName.trim();
+    if (req.body.pincode) details.pincode = String(req.body.pincode).trim();
+    if (req.body.shopAddress) details.shopAddress = req.body.shopAddress.trim();
+
+    // Only update editable fields; application data remains immutable
+    if (shopCategory) details.shopCategory = shopCategory;
+    if (shopDescription) details.shopDescription = shopDescription.trim();
+    if (shopImage) details.images = [shopImage];
+
+    if (city || state) {
+      details.location = {
+        city: city || existingLocation.city,
+        state: state || existingLocation.state
+      };
+    }
+
+    if (openingTime || closingTime || workingDays) {
+      details.workingHours = {
+        openingTime: openingTime || existingWorkingHours.openingTime,
+        closingTime: closingTime || existingWorkingHours.closingTime,
+        workingDays: workingDays || existingWorkingHours.workingDays
+      };
+    }
+
+    if (slotDuration) details.slotDuration = parseInt(slotDuration, 10);
+    if (advanceBookingDays) details.advanceBookingDays = parseInt(advanceBookingDays, 10);
+    if (simultaneousBookings) details.simultaneousBookings = parseInt(simultaneousBookings, 10);
+
+    if (Array.isArray(services)) {
+      details.services = services.map((svc) => {
+        if (typeof svc === 'string') return { name: svc };
+        if (svc && typeof svc === 'object') return {
+          name: svc.name,
+          price: svc.price,
+          duration: svc.duration,
+          description: svc.description,
+          isActive: svc.isActive !== undefined ? svc.isActive : true
+        };
+        return null;
+      }).filter(Boolean);
+    }
+    if (contact) details.contact = { ...existingContact, ...contact };
+    if (socialMedia) details.socialMedia = { ...existingSocial, ...socialMedia };
+    if (tags) details.tags = tags;
+
+    await details.save();
+
+    console.log(`✅ Merchant details updated (editable fields): ${req.user.merchantId}`);
+    res.json({
+      success: true,
+      message: 'Merchant details updated successfully',
+      details
+    });
+  } catch (error) {
+    console.error('Error updating merchant details:', error);
+    res.status(500).json({ error: 'Failed to update merchant details' });
+  }
+});
+
+// Get merchant details by ID (public)
 app.get('/api/merchant/profile/:merchantId', async (req, res) => {
   try {
     const { merchantId } = req.params;
     
-    const profile = await MerchantProfile.findOne({ 
-      merchantId,
-      isActive: true 
-    })
+    const details = await MerchantInfo.findOne({ merchantId, status: 'approved', isActive: true })
     .select('-__v -createdAt -updatedAt')
     .lean();
     
-    if (!profile) {
+    if (!details) {
       return res.status(404).json({ error: 'Merchant profile not found' });
     }
     
-    res.json({ profile });
+    res.json({ profile: details });
   } catch (error) {
     console.error('Error fetching merchant profile:', error);
     res.status(500).json({ error: 'Failed to fetch profile' });
@@ -881,38 +817,70 @@ app.get('/api/merchant/profile/:merchantId', async (req, res) => {
 });
 
 // Search merchants (public)
+// Advanced merchant search by pincode or merchantId
+app.get('/api/merchants/search-advanced', async (req, res) => {
+  try {
+    const { type, value } = req.query;
+
+    if (!type || !value) {
+      return res.status(400).json({ error: 'Search type and value are required' });
+    }
+
+    let filter = { status: 'approved' };
+
+    if (type === 'pincode') {
+      filter.pincode = value.trim();
+    } else if (type === 'merchantId') {
+      filter.merchantId = value.trim().toUpperCase();
+    } else {
+      return res.status(400).json({ error: 'Invalid search type. Use "pincode" or "merchantId"' });
+    }
+
+    const merchants = await MerchantInfo.find(filter)
+      .select('merchantId shopName ownerName phone pincode shopAddress shopCategory shopDescription contact socialMedia')
+      .lean();
+
+    res.json({ merchants });
+  } catch (error) {
+    console.error('Error in advanced search:', error);
+    res.status(500).json({ error: 'Failed to search merchants' });
+  }
+});
+
 app.get('/api/merchants/search', async (req, res) => {
   try {
     const { category, pincode, area, query, page = 1, limit = 20 } = req.query;
+    const numericLimit = parseInt(limit, 10);
+    const numericPage = parseInt(page, 10);
     
     let filter = { isActive: true };
     
     if (category) filter.shopCategory = category;
-    if (pincode) filter['location.pincode'] = pincode;
-    if (area) filter['location.area'] = new RegExp(area, 'i');
+    if (pincode) filter['applicationData.pincode'] = pincode;
+    if (area) filter['location.city'] = new RegExp(area, 'i');
     if (query) {
       filter.$or = [
-        { shopName: new RegExp(query, 'i') },
+        { 'applicationData.shopName': new RegExp(query, 'i') },
         { shopDescription: new RegExp(query, 'i') },
         { tags: new RegExp(query, 'i') }
       ];
     }
 
-    const merchants = await MerchantProfile.find(filter)
-      .select('merchantId shopName shopCategory shopImage location.area location.pincode stats.rating stats.reviewCount workingHours isFeatured')
-      .sort({ isFeatured: -1, 'stats.rating': -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit))
+    const merchants = await MerchantInfo.find({ ...filter, status: 'approved' })
+      .select('merchantId applicationData shopCategory shopDescription images location workingHours tags slotDuration')
+      .sort({ createdAt: -1 })
+      .skip((numericPage - 1) * numericLimit)
+      .limit(numericLimit)
       .lean();
 
-    const total = await MerchantProfile.countDocuments(filter);
+    const total = await MerchantInfo.countDocuments({ ...filter, status: 'approved' });
 
     res.json({ 
       merchants,
       pagination: {
         total,
-        page: parseInt(page),
-        pages: Math.ceil(total / limit)
+        page: numericPage,
+        pages: Math.ceil(total / numericLimit)
       }
     });
   } catch (error) {
@@ -932,7 +900,7 @@ app.get('/api/admin', verifyToken, async (req, res) => {
     const users = await User.find({}).select('phone name role merchantId isActive createdAt').lean();
     const userCount = await User.countDocuments();
     const merchantCount = await User.countDocuments({ role: 'merchant' });
-    const pendingCount = await MerchantApplication.countDocuments({ status: 'pending' });
+    const pendingCount = await MerchantInfo.countDocuments({ status: 'pending' });
     
     res.json({ 
       message: 'Admin dashboard',
@@ -1004,6 +972,7 @@ app.listen(PORT, HOST, () => {
   console.log(`   GET  /api/merchant/profile          - Get own merchant profile (merchant)`);
   console.log(`   GET  /api/merchant/profile/:id      - Get merchant profile by ID (public)`);
   console.log(`   GET  /api/merchants/search          - Search merchants (public)`);
+  console.log(`   GET  /api/merchants/search-advanced - Search by pincode or merchantId (public)`);
   console.log(`   POST /api/merchant/upload-image     - Upload shop image (merchant)`);
   console.log(`   GET  /api/admin/merchants/pending   - Get pending applications (admin)`);
   console.log(`   POST /api/admin/merchants/approve   - Approve application (admin)`);

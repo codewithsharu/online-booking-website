@@ -18,44 +18,21 @@ const merchantApplicationSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  email: {
-    type: String,
-    trim: true,
-    lowercase: true,
-    match: /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/
-  },
-  businessName: {
+  shopName: {
     type: String,
     required: true,
     trim: true,
     index: true
   },
-  businessCategory: {
+  pincode: {
     type: String,
     required: true,
-    enum: ['Barber', 'Salon', 'Clinic', 'Repair', 'Other'],
-    index: true
+    match: /^\d{6}$/
   },
-  businessDescription: {
+  shopAddress: {
     type: String,
+    required: true,
     trim: true
-  },
-  location: {
-    pincode: {
-      type: String,
-      required: true,
-      match: /^\d{6}$/
-    },
-    area: {
-      type: String,
-      required: true,
-      trim: true
-    },
-    fullAddress: {
-      type: String,
-      required: true,
-      trim: true
-    }
   },
   status: {
     type: String,
@@ -102,13 +79,5 @@ const merchantApplicationSchema = new mongoose.Schema({
 // Compound indexes for efficient queries
 merchantApplicationSchema.index({ phone: 1, status: 1 });
 merchantApplicationSchema.index({ status: 1, appliedAt: -1 });
-
-// Pre-save hook - simplified
-merchantApplicationSchema.pre('save', async function() {
-  // Ensure location object exists
-  if (!this.location) {
-    this.location = {};
-  }
-});
 
 module.exports = mongoose.model('MerchantApplication', merchantApplicationSchema);

@@ -12,8 +12,9 @@ function MerchantDashboard() {
     shopCategory: '',
     shopImage: '',
     pincode: '',
-    area: '',
-    fullAddress: '',
+    shopAddress: '',
+    city: '',
+    state: '',
     openingTime: '',
     closingTime: '',
     slotDuration: '',
@@ -63,30 +64,31 @@ function MerchantDashboard() {
       setMerchantData(statusData);
 
       // If approved, fetch profile
-      if (statusData.approved) {
+      const isApproved = statusData.status === 'approved';
+      if (isApproved) {
         const profileResponse = await fetch(`${API_URL}/merchant/profile`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
         const profile = await profileResponse.json();
-        setProfileData(profile);
+        const info = profile?.details || {};
+        setProfileData(info);
         
         // Populate form with existing data
-        if (profile) {
-          setFormData({
-            shopName: profile.shopName || '',
-            shopCategory: profile.shopCategory || '',
-            shopImage: profile.shopImage || '',
-            pincode: profile.pincode || '',
-            area: profile.area || '',
-            fullAddress: profile.fullAddress || '',
-            openingTime: profile.openingTime || '',
-            closingTime: profile.closingTime || '',
-            slotDuration: profile.slotDuration || '',
-            services: profile.services || []
-          });
-        }
+        setFormData({
+          shopName: info.shopName || '',
+          shopCategory: info.shopCategory || '',
+          shopImage: (info.images && info.images[0]) || '',
+          pincode: info.pincode || '',
+          shopAddress: info.shopAddress || '',
+          city: info.location?.city || '',
+          state: info.location?.state || '',
+          openingTime: info.workingHours?.openingTime || '',
+          closingTime: info.workingHours?.closingTime || '',
+          slotDuration: info.slotDuration || '',
+          services: (info.services || []).map(s => s.name || s)
+        });
       }
     } catch (error) {
       console.error('Error fetching merchant data:', error);
@@ -191,14 +193,15 @@ function MerchantDashboard() {
       setFormData({
         shopName: profileData.shopName || '',
         shopCategory: profileData.shopCategory || '',
-        shopImage: profileData.shopImage || '',
+        shopImage: (profileData.images && profileData.images[0]) || '',
         pincode: profileData.pincode || '',
-        area: profileData.area || '',
-        fullAddress: profileData.fullAddress || '',
-        openingTime: profileData.openingTime || '',
-        closingTime: profileData.closingTime || '',
+        shopAddress: profileData.shopAddress || '',
+        city: profileData.location?.city || '',
+        state: profileData.location?.state || '',
+        openingTime: profileData.workingHours?.openingTime || '',
+        closingTime: profileData.workingHours?.closingTime || '',
         slotDuration: profileData.slotDuration || '',
-        services: profileData.services || []
+        services: (profileData.services || []).map(s => s.name || s)
       });
     }
   };
@@ -271,10 +274,10 @@ function MerchantDashboard() {
             textAlign: 'left'
           }}>
             <h3>Application Details:</h3>
-            <p><strong>Business Name:</strong> {merchantData.application.businessName}</p>
+            <p><strong>Shop Name:</strong> {merchantData.application.shopName}</p>
             <p><strong>Owner Name:</strong> {merchantData.application.ownerName}</p>
-            <p><strong>Category:</strong> {merchantData.application.businessCategory}</p>
-            <p><strong>Location:</strong> {merchantData.application.area}, {merchantData.application.pincode}</p>
+            <p><strong>Pincode:</strong> {merchantData.application.pincode}</p>
+            <p><strong>Shop Address:</strong> {merchantData.application.shopAddress}</p>
           </div>
         </div>
       ) : merchantData.status === 'rejected' ? (
@@ -309,7 +312,7 @@ function MerchantDashboard() {
                 <h3 style={{ margin: '0 0 10px 0', color: '#155724' }}>✅ Approved Merchant</h3>
                 <p style={{ margin: '5px 0' }}><strong>Status:</strong> <span style={{ color: '#28a745', fontWeight: 'bold' }}>APPROVED</span></p>
                 <p style={{ margin: '5px 0' }}><strong>Merchant ID:</strong> {merchantData.merchantId}</p>
-                <p style={{ margin: '5px 0' }}><strong>Business Name:</strong> {merchantData.application.businessName}</p>
+                <p style={{ margin: '5px 0' }}><strong>Shop Name:</strong> {merchantData.application.shopName}</p>
               </div>
               <div style={{ textAlign: 'right', fontSize: '12px', color: '#666' }}>
                 <p>Applied: {new Date(merchantData.application.appliedAt).toLocaleDateString()}</p>
@@ -368,13 +371,13 @@ function MerchantDashboard() {
                     <strong>Category:</strong> {profileData?.shopCategory || 'Not set'}
                   </div>
                   <div>
-                    <strong>Location:</strong> {profileData?.area || 'Not set'}, Pincode: {profileData?.pincode || 'Not set'}
+                    <strong>Location:</strong> {profileData?.location?.city || 'Not set'}, State: {profileData?.location?.state || 'Not set'}, Pincode: {profileData?.pincode || 'Not set'}
                   </div>
                   <div>
-                    <strong>Full Address:</strong> {profileData?.fullAddress || 'Not set'}
+                    <strong>Shop Address:</strong> {profileData?.shopAddress || 'Not set'}
                   </div>
                   <div>
-                    <strong>Working Hours:</strong> {profileData?.openingTime || 'Not set'} - {profileData?.closingTime || 'Not set'}
+                    <strong>Working Hours:</strong> {profileData?.workingHours?.openingTime || 'Not set'} - {profileData?.workingHours?.closingTime || 'Not set'}
                   </div>
                   <div>
                     <strong>Slot Duration:</strong> {profileData?.slotDuration ? `${profileData.slotDuration} minutes` : 'Not set'}
@@ -384,7 +387,7 @@ function MerchantDashboard() {
                     {profileData?.services && profileData.services.length > 0 ? (
                       <ul style={{ marginTop: '10px', paddingLeft: '20px' }}>
                         {profileData.services.map((service, index) => (
-                          <li key={index}>{service}</li>
+                          <li key={index}>{service.name || service}</li>
                         ))}
                       </ul>
                     ) : (
@@ -508,12 +511,32 @@ function MerchantDashboard() {
 
                 <div style={{ marginBottom: '15px' }}>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                    Area:
+                    Shop Address:
+                  </label>
+                  <textarea
+                    name="shopAddress"
+                    value={formData.shopAddress}
+                    onChange={handleInputChange}
+                    rows="3"
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      border: '1px solid #ced4da',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      resize: 'vertical'
+                    }}
+                  ></textarea>
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                    City:
                   </label>
                   <input
                     type="text"
-                    name="area"
-                    value={formData.area}
+                    name="city"
+                    value={formData.city}
                     onChange={handleInputChange}
                     style={{
                       width: '100%',
@@ -527,22 +550,21 @@ function MerchantDashboard() {
 
                 <div style={{ marginBottom: '15px' }}>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                    Full Address:
+                    State:
                   </label>
-                  <textarea
-                    name="fullAddress"
-                    value={formData.fullAddress}
+                  <input
+                    type="text"
+                    name="state"
+                    value={formData.state}
                     onChange={handleInputChange}
-                    rows="3"
                     style={{
                       width: '100%',
                       padding: '8px',
                       border: '1px solid #ced4da',
                       borderRadius: '4px',
-                      fontSize: '14px',
-                      resize: 'vertical'
+                      fontSize: '14px'
                     }}
-                  ></textarea>
+                  />
                 </div>
 
                 <div style={{ marginBottom: '15px' }}>
