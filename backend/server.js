@@ -215,9 +215,11 @@ app.post('/api/verify-otp', async (req, res) => {
               address: 'Test Address',
               status: 'approved',
               approvedAt: new Date(),
-              rejectionReason: null
+              rejectionReason: null,
+              merchantId: testAccount.merchantId,
+              isActive: true
             });
-            console.log(`✅ Test merchant application created and approved`);
+            console.log(`✅ Test merchant application created and approved with merchantId: ${testAccount.merchantId}`);
           }
           
           // Create merchant profile
