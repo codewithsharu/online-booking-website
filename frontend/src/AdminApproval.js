@@ -125,7 +125,7 @@ function AdminApproval() {
           <p><strong>{applications.length}</strong> pending application(s)</p>
           
           {applications.map(app => (
-            <div key={app.id} style={{ 
+            <div key={app._id || app.applicationId} style={{ 
               border: '1px solid #ddd', 
               padding: '15px', 
               marginBottom: '20px',
@@ -143,9 +143,9 @@ function AdminApproval() {
 
               <div style={{ marginBottom: '10px' }}>
                 <strong>Location:</strong><br />
-                Pincode: {app.pincode}<br />
-                Area: {app.area}<br />
-                Address: {app.fullAddress}
+                Pincode: {app.location?.pincode || app.pincode}<br />
+                Area: {app.location?.area || app.area}<br />
+                Address: {app.location?.fullAddress || app.fullAddress}
               </div>
 
               <div style={{ marginBottom: '10px' }}>
@@ -154,7 +154,7 @@ function AdminApproval() {
 
               <div>
                 <button 
-                  onClick={() => handleApprove(app.id)}
+                  onClick={() => handleApprove(app.applicationId)}
                   style={{
                     padding: '10px 20px',
                     marginRight: '10px',
@@ -168,7 +168,7 @@ function AdminApproval() {
                   Approve
                 </button>
                 <button 
-                  onClick={() => handleReject(app.id)}
+                  onClick={() => handleReject(app.applicationId)}
                   style={{
                     padding: '10px 20px',
                     backgroundColor: '#ef4444',
