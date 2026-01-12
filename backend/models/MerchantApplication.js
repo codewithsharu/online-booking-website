@@ -104,15 +104,10 @@ merchantApplicationSchema.index({ phone: 1, status: 1 });
 merchantApplicationSchema.index({ status: 1, appliedAt: -1 });
 
 // Pre-save hook - simplified
-merchantApplicationSchema.pre('save', async function(next) {
-  try {
-    // Ensure location object exists
-    if (!this.location) {
-      this.location = {};
-    }
-    next();
-  } catch (error) {
-    next(error);
+merchantApplicationSchema.pre('save', async function() {
+  // Ensure location object exists
+  if (!this.location) {
+    this.location = {};
   }
 });
 
