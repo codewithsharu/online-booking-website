@@ -48,7 +48,7 @@ const TEST_ACCOUNTS = {
 };
 
 // Approved SMS template (must match provider's template)
-const SMS_TEMPLATE = 'Welcome to the xyz powered by SMSINDIAHUB. Your OTP for registration is {{OTP}}';
+const SMS_TEMPLATE = 'Welcome to the WaitSmart powered by SMSINDIAHUB. Your OTP for registration is {{OTP}}';
 
 // SMS API Error Code Mapping
 const SMS_ERROR_CODES = {
