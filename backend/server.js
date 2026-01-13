@@ -50,6 +50,45 @@ const TEST_ACCOUNTS = {
 // Approved SMS template (must match provider's template)
 const SMS_TEMPLATE = 'Welcome to the xyz powered by SMSINDIAHUB. Your OTP for registration is {{OTP}}';
 
+// SMS API Error Code Mapping
+const SMS_ERROR_CODES = {
+  '000': 'OTP sent successfully',
+  '001': 'Login details cannot be blank',
+  '003': 'Sender cannot be blank',
+  '004': 'Message text cannot be blank',
+  '005': 'Message data cannot be blank',
+  '006': 'Generic error occurred',
+  '007': 'Username or password is invalid',
+  '008': 'Account not active',
+  '009': 'Account locked, contact your account manager',
+  '010': 'API restriction',
+  '011': 'IP address restriction',
+  '012': 'Invalid length of message text',
+  '013': 'Mobile numbers not valid',
+  '014': 'Account locked due to spam message, contact support',
+  '015': 'Sender ID not valid',
+  '017': 'Group ID not valid',
+  '018': 'Multi message to group is not supported',
+  '019': 'Schedule date is not valid',
+  '020': 'Message or mobile number cannot be blank',
+  '021': 'Insufficient credits',
+  '022': 'Invalid job ID',
+  '023': 'Parameter missing',
+  '024': 'Invalid template or template mismatch',
+  '025': 'Field cannot be blank or empty',
+  '026': 'Invalid date range',
+  '027': 'Invalid opt-in user',
+  '028': 'Invalid data',
+  '029': 'Email cannot be blank',
+  '030': 'Password cannot be blank',
+  '031': 'Username cannot be blank',
+  '032': 'Mobile number cannot be blank',
+  '033': 'Username already exists',
+  '034': 'Mobile number already exists',
+  '035': 'Email ID already exists',
+  '036': 'Email ID cannot be blank'
+};
+
 // Normalize phone numbers to 10-digit (India) format
 const normalizePhone = (rawPhone) => {
   const digits = (rawPhone || '').replace(/\D/g, '');
@@ -120,8 +159,8 @@ app.post('/api/send-otp', async (req, res) => {
 
     // Check if it's a test account - bypass OTP
     if (TEST_ACCOUNTS[normalizedPhone]) {
-      console.log(`🧪 Test account detected: ${normalizedPhone} - Using bypass OTP: 111111`);
-      OTPService.saveOTP(normalizedPhone, '111111');
+      console.log(`🧪 Test account detected: ${normalizedPhone} - Using bypass OTP: 1111`);
+      OTPService.saveOTP(normalizedPhone, '1111');
       return res.json({ 
         success: true, 
         message: 'OTP sent successfully (Test Account)',
@@ -129,7 +168,7 @@ app.post('/api/send-otp', async (req, res) => {
       });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
     OTPService.saveOTP(normalizedPhone, otp);
 
     // Use approved template exactly as registered with provider
@@ -139,30 +178,50 @@ app.post('/api/send-otp', async (req, res) => {
     const smsUrl = `${SMS_API_URL}?APIKey=${SMS_API_KEY}&msisdn=91${normalizedPhone}&sid=${SMS_SENDER_ID}&msg=${encodeURIComponent(message)}&fl=0&gwid=${SMS_GWID}`;
 
     const smsResponse = await axios.get(smsUrl);
-    const smsData = typeof smsResponse.data === 'string' ? smsResponse.data : JSON.stringify(smsResponse.data);
-    console.log(`📱 OTP sent to ${normalizedPhone}: ${otp}`);
-    console.log(`📤 SMS API response [${smsResponse.status}]: ${smsData}`);
+    let smsData = smsResponse.data;
+    let smsJson = {};
     
-    // Check if SMS actually failed (provider returns "Failed" in response)
-    if (smsData && (smsData.includes('Failed') || smsData.includes('insufficient'))) {
-      console.error('❌ SMS delivery failed:', smsData);
+    // Parse response - could be JSON or plain text
+    if (typeof smsData === 'string') {
+      try {
+        smsJson = JSON.parse(smsData);
+      } catch {
+        smsJson = { rawResponse: smsData };
+      }
+    } else {
+      smsJson = smsData;
+    }
+    
+    console.log(`📱 OTP sent to ${normalizedPhone}: ${otp}`);
+    console.log(`📤 SMS API response [${smsResponse.status}]:`, smsJson);
+    
+    // Check for error in response
+    const errorCode = smsJson.ErrorCode || smsJson.error_code || '';
+    const errorMessage = SMS_ERROR_CODES[errorCode] || smsJson.ErrorMessage || 'Unknown error';
+    
+    // Error codes that indicate failure
+    const failureCodes = ['021', '013', '012', '011', '010', '009', '008', '007', '006', '005', '004', '003', '001'];
+    
+    if (failureCodes.includes(errorCode)) {
+      console.error(`❌ SMS API error [${errorCode}]: ${errorMessage}`);
       return res.status(500).json({ 
-        error: 'Failed to send SMS',
-        details: smsData.includes('insufficient') ? 'Insufficient SMS credits' : 'SMS delivery failed'
+        error: errorMessage,
+        errorCode,
+        details: 'Failed to send OTP. Please try again later.'
       });
     }
     
     res.json({ 
       success: true, 
       message: 'OTP sent successfully',
-      smsApiStatus: smsResponse.status,
-      smsApiData: smsData
+      errorCode,
+      errorMessage
     });
   } catch (error) {
     console.error('Error sending OTP:', error?.response?.data || error.message || error);
     res.status(500).json({ 
       error: 'Failed to send OTP',
-      details: error?.response?.data || error.message || 'Unknown error'
+      details: error?.response?.data || error.message || 'Network error'
     });
   }
 });
@@ -182,7 +241,7 @@ app.post('/api/verify-otp', async (req, res) => {
     const testAccount = TEST_ACCOUNTS[normalizedPhone];
     let isValid = false;
     
-    if (testAccount && otp === '111111') {
+    if (testAccount && otp === '1111') {
       isValid = true;
       console.log(`🧪 Test account OTP accepted: ${normalizedPhone}`);
     } else {

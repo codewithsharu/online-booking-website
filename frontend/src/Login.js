@@ -5,6 +5,45 @@ import { Input } from 'antd';
 // For mobile testing: set REACT_APP_API_URL=http://YOUR_PC_IP:3000 in .env
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
+// SMS Error code messages mapping
+const SMS_ERROR_CODES = {
+  '000': 'OTP sent successfully',
+  '001': 'Login details cannot be blank',
+  '003': 'Sender cannot be blank',
+  '004': 'Message text cannot be blank',
+  '005': 'Message data cannot be blank',
+  '006': 'Generic error occurred',
+  '007': 'Username or password is invalid',
+  '008': 'Account not active',
+  '009': 'Account locked, contact your account manager',
+  '010': 'API restriction - please contact support',
+  '011': 'IP address restriction - try again',
+  '012': 'Invalid message length',
+  '013': 'Mobile number not valid',
+  '014': 'Account locked due to spam - contact support',
+  '015': 'Sender ID not valid',
+  '017': 'Group ID not valid',
+  '018': 'Multi message to group not supported',
+  '019': 'Schedule date not valid',
+  '020': 'Message or mobile number cannot be blank',
+  '021': 'Insufficient SMS credits - try again later',
+  '022': 'Invalid job ID',
+  '023': 'Parameter missing',
+  '024': 'Invalid template',
+  '025': 'Field cannot be blank',
+  '026': 'Invalid date range',
+  '027': 'Invalid opt-in user',
+  '028': 'Invalid data',
+  '029': 'Email cannot be blank',
+  '030': 'Password cannot be blank',
+  '031': 'Username cannot be blank',
+  '032': 'Mobile number cannot be blank',
+  '033': 'Username already exists',
+  '034': 'Mobile number already exists',
+  '035': 'Email already exists',
+  '036': 'Email cannot be blank'
+};
+
 function Login() {
   const [step, setStep] = useState('phone');
   const [phone, setPhone] = useState('');
@@ -66,8 +105,8 @@ function Login() {
         
         // Auto-fill OTP for test accounts
         if (data.isTestAccount) {
-          setOtp('111111');
-          setMessage('🧪 Test account detected - OTP pre-filled (111111)');
+          setOtp('1111');
+          setMessage('🧪 Test account detected - OTP pre-filled (1111)');
         }
         
         // For testing: show OTP if returned by server
@@ -75,7 +114,11 @@ function Login() {
           console.log('🔐 TEST OTP (from server):', data.otp);
         }
       } else {
-        setMessage(data.error || `Failed to send OTP (status ${res.status})`);
+        // Handle error codes from backend
+        const errorMsg = data.error || 'Failed to send OTP';
+        const errorCode = data.errorCode;
+        const userMessage = errorCode && SMS_ERROR_CODES[errorCode] ? SMS_ERROR_CODES[errorCode] : errorMsg;
+        setMessage(userMessage);
       }
     } catch (error) {
       console.error('❌ Network error sending OTP:', error);
@@ -105,7 +148,11 @@ function Login() {
           console.log('🔐 TEST OTP (resend):', data.otp);
         }
       } else {
-        setMessage(data.error || `Failed to resend OTP (status ${res.status})`);
+        // Handle error codes from backend
+        const errorMsg = data.error || 'Failed to resend OTP';
+        const errorCode = data.errorCode;
+        const userMessage = errorCode && SMS_ERROR_CODES[errorCode] ? SMS_ERROR_CODES[errorCode] : errorMsg;
+        setMessage(userMessage);
       }
     } catch (error) {
       console.error('❌ Network error resending OTP:', error);
@@ -123,13 +170,13 @@ function Login() {
       return;
     }
 
-    if (trimmedOTP.length !== 6) {
-      setMessage(`Enter valid 6-digit OTP (current: ${trimmedOTP.length} digits)`);
+    if (trimmedOTP.length !== 4) {
+      setMessage(`Enter valid 4-digit OTP (current: ${trimmedOTP.length} digits)`);
       return;
     }
 
-    if (!/^\d{6}$/.test(trimmedOTP)) {
-      setMessage('OTP must contain only 6 digits');
+    if (!/^\d{4}$/.test(trimmedOTP)) {
+      setMessage('OTP must contain only 4 digits');
       return;
     }
     
@@ -234,11 +281,11 @@ function Login() {
         {step === 'otp' && (
           <div className="login-form fade-in">
             <h1 className="login-title">Verify OTP</h1>
-            <p className="otp-subtitle">Enter 6 digit verification code sent to +91{phone}</p>
+            <p className="otp-subtitle">Enter 4 digit verification code sent to +91{phone}</p>
             
             <div className="otp-input-wrapper">
               <Input.OTP
-                length={6}
+                length={4}
                 size="large"
                 value={otp}
                 formatter={(str = '') => str.replace(/\D/g, '')}
@@ -251,7 +298,7 @@ function Login() {
 
                 {message && <p className="error-msg">{message}</p>}
 
-                <button onClick={verifyOTP} disabled={loading || otp.length !== 6} className="submit-btn">
+                <button onClick={verifyOTP} disabled={loading || otp.length !== 4} className="submit-btn">
                   {loading ? 'Verifying...' : 'Verify OTP'}
                 </button>
 
