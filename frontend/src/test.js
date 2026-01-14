@@ -130,20 +130,20 @@ Choose your time, book instantly, and arrive stress-free.
               className="overflow-hidden w-[300px] lg:w-[420px] transition-all duration-200 transform bg-white border border-gray-200 rounded-2xl hover:shadow-lg hover:-translate-y-1">
               <div className="px-4 py-5 sm:p-5">
                 <div className="flex items-start lg:items-center">
-                  <a href="#" title="" className="shrink-0">
+                  <div className="shrink-0">
                     <img className="lg:h-24 w-14 h-14 lg:w-24 rounded-xl object-cover" src={grooming} alt="grooming" />
-                  </a>
+                  </div>
 
                   <div className="flex-1 ml-4 lg:ml-6">
                     <p className="text-xs font-medium text-gray-900 lg:text-sm">
-                      <a href="#" title="" className="">
+                      <span className="">
                         Grooming
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-sm font-bold text-gray-900 lg:text-lg group-hover:text-gray-600">
-                      <a href="#" title="" className="">
+                      <span className="">
                         Skip the queue at your favorite salon
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-xs font-medium text-gray-500 lg:text-sm">
                       Verified vendors
@@ -159,21 +159,21 @@ Choose your time, book instantly, and arrive stress-free.
               className="overflow-hidden w-[300px] lg:w-[420px] transition-all duration-200 transform bg-white border border-gray-200 rounded-2xl hover:shadow-lg hover:-translate-y-1">
               <div className="px-4 py-5 sm:p-5">
                 <div className="flex items-start lg:items-center">
-                  <a href="#" title="" className="shrink-0">
+                  <div className="shrink-0">
                     <img className="lg:h-24 w-14 h-14 lg:w-24 rounded-xl object-cover" src={healthcare}
                       alt="healthcare" />
-                  </a>
+                  </div>
 
                   <div className="flex-1 ml-4 lg:ml-6">
                     <p className="text-xs font-medium text-gray-900 lg:text-sm">
-                      <a href="#" title="" className="">
+                      <span className="">
                        Healthcare
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-sm font-bold text-gray-900 lg:text-lg group-hover:text-gray-600">
-                      <a href="#" title="" className="">
+                      <span className="">
                        Book doctor visits without waiting
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-xs font-medium text-gray-500 lg:text-sm">
                       Instant confirmation
@@ -189,21 +189,21 @@ Choose your time, book instantly, and arrive stress-free.
               className="overflow-hidden w-[300px] lg:w-[420px] transition-all duration-200 transform bg-white border border-gray-200 rounded-2xl hover:shadow-lg hover:-translate-y-1">
               <div className="px-4 py-5 sm:p-5">
                 <div className="flex items-start lg:items-center">
-                  <a href="#" title="" className="shrink-0">
+                  <div className="shrink-0">
                     <img className="lg:h-24 w-14 h-14 lg:w-24 rounded-xl object-cover" src={services}
                       alt="" />
-                  </a>
+                  </div>
 
                   <div className="flex-1 ml-4 lg:ml-6">
                     <p className="text-xs font-medium text-gray-900 lg:text-sm">
-                      <a href="#" title="" className="">
+                      <span className="">
                         Services
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-sm font-bold text-gray-900 lg:text-lg group-hover:text-gray-600">
-                      <a href="#" title="" className="">
+                      <span className="">
                         Schedule repairs at your convenience
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-xs font-medium text-gray-500 lg:text-sm">
                       Verified vendors
@@ -219,21 +219,21 @@ Choose your time, book instantly, and arrive stress-free.
               className="overflow-hidden w-[300px] lg:w-[420px] transition-all duration-200 transform bg-white border border-gray-200 rounded-2xl hover:shadow-lg hover:-translate-y-1">
               <div className="px-4 py-5 sm:p-5">
                 <div className="flex items-start lg:items-center">
-                  <a href="#" title="" className="shrink-0">
+                  <div className="shrink-0">
                     <img className="lg:h-24 w-14 h-14 lg:w-24 rounded-xl object-cover" src={wellness}
                       alt="" />
-                  </a>
+                  </div>
 
                   <div className="flex-1 ml-4 lg:ml-6">
                     <p className="text-xs font-medium text-gray-900 lg:text-sm">
-                      <a href="#" title="" className="">
+                      <span className="">
                        Wellness
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-sm font-bold text-gray-900 lg:text-lg group-hover:text-gray-600">
-                      <a href="#" title="" className="">
+                      <span className="">
                         Relax more with pre-booked sessions
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-xs font-medium text-gray-500 lg:text-sm">
                       Hassle-free booking
@@ -249,21 +249,21 @@ Choose your time, book instantly, and arrive stress-free.
               className="overflow-hidden w-[300px] lg:w-[420px] transition-all duration-200 transform bg-white border border-gray-200 rounded-2xl hover:shadow-lg hover:-translate-y-1">
               <div className="px-4 py-5 sm:p-5">
                 <div className="flex items-start lg:items-center">
-                  <a href="#" title="" className="shrink-0">
+                  <div className="shrink-0">
                     <img className="lg:h-24 w-14 h-14 lg:w-24 rounded-xl object-cover" src={fittness}
                       alt="" />
-                  </a>
+                  </div>
 
                   <div className="flex-1 ml-4 lg:ml-6">
                     <p className="text-xs font-medium text-gray-900 lg:text-sm">
-                      <a href="#" title="" className="">
+                      <span className="">
                         Fitness
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-sm font-bold text-gray-900 lg:text-lg group-hover:text-gray-600">
-                      <a href="#" title="" className="">
+                      <span className="">
                         Book gym sessions on your schedule
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-xs font-medium text-gray-500 lg:text-sm">
                       Flexible timings
@@ -280,20 +280,20 @@ Choose your time, book instantly, and arrive stress-free.
               className="overflow-hidden w-[300px] lg:w-[420px] transition-all duration-200 transform bg-white border border-gray-200 rounded-2xl hover:shadow-lg hover:-translate-y-1">
               <div className="px-4 py-5 sm:p-5">
                 <div className="flex items-start lg:items-center">
-                  <a href="#" title="" className="shrink-0">
+                  <div className="shrink-0">
                     <img className="lg:h-24 w-14 h-14 lg:w-24 rounded-xl object-cover" src={grooming} alt="grooming" />
-                  </a>
+                  </div>
 
                   <div className="flex-1 ml-4 lg:ml-6">
                     <p className="text-xs font-medium text-gray-900 lg:text-sm">
-                      <a href="#" title="" className="">
+                      <span className="">
                         Grooming
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-sm font-bold text-gray-900 lg:text-lg group-hover:text-gray-600">
-                      <a href="#" title="" className="">
+                      <span className="">
                         Skip the queue at your favorite salon
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-xs font-medium text-gray-500 lg:text-sm">
                       Verified vendors
@@ -309,21 +309,21 @@ Choose your time, book instantly, and arrive stress-free.
               className="overflow-hidden w-[300px] lg:w-[420px] transition-all duration-200 transform bg-white border border-gray-200 rounded-2xl hover:shadow-lg hover:-translate-y-1">
               <div className="px-4 py-5 sm:p-5">
                 <div className="flex items-start lg:items-center">
-                  <a href="#" title="" className="shrink-0">
+                  <div className="shrink-0">
                     <img className="lg:h-24 w-14 h-14 lg:w-24 rounded-xl object-cover" src={healthcare}
                       alt="healthcare" />
-                  </a>
+                  </div>
 
                   <div className="flex-1 ml-4 lg:ml-6">
                     <p className="text-xs font-medium text-gray-900 lg:text-sm">
-                      <a href="#" title="" className="">
+                      <span className="">
                        Healthcare
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-sm font-bold text-gray-900 lg:text-lg group-hover:text-gray-600">
-                      <a href="#" title="" className="">
+                      <span className="">
                        Book doctor visits without waiting
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-xs font-medium text-gray-500 lg:text-sm">
                       Instant confirmation
@@ -339,21 +339,21 @@ Choose your time, book instantly, and arrive stress-free.
               className="overflow-hidden w-[300px] lg:w-[420px] transition-all duration-200 transform bg-white border border-gray-200 rounded-2xl hover:shadow-lg hover:-translate-y-1">
               <div className="px-4 py-5 sm:p-5">
                 <div className="flex items-start lg:items-center">
-                  <a href="#" title="" className="shrink-0">
+                  <div className="shrink-0">
                     <img className="lg:h-24 w-14 h-14 lg:w-24 rounded-xl object-cover" src={services}
                       alt="" />
-                  </a>
+                  </div>
 
                   <div className="flex-1 ml-4 lg:ml-6">
                     <p className="text-xs font-medium text-gray-900 lg:text-sm">
-                      <a href="#" title="" className="">
+                      <span className="">
                         Services
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-sm font-bold text-gray-900 lg:text-lg group-hover:text-gray-600">
-                      <a href="#" title="" className="">
+                      <span className="">
                         Schedule repairs at your convenience
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-xs font-medium text-gray-500 lg:text-sm">
                       Verified vendors
@@ -369,21 +369,21 @@ Choose your time, book instantly, and arrive stress-free.
               className="overflow-hidden w-[300px] lg:w-[420px] transition-all duration-200 transform bg-white border border-gray-200 rounded-2xl hover:shadow-lg hover:-translate-y-1">
               <div className="px-4 py-5 sm:p-5">
                 <div className="flex items-start lg:items-center">
-                  <a href="#" title="" className="shrink-0">
+                  <div className="shrink-0">
                     <img className="lg:h-24 w-14 h-14 lg:w-24 rounded-xl object-cover" src={wellness}
                       alt="" />
-                  </a>
+                  </div>
 
                   <div className="flex-1 ml-4 lg:ml-6">
                     <p className="text-xs font-medium text-gray-900 lg:text-sm">
-                      <a href="#" title="" className="">
+                      <span className="">
                        Wellness
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-sm font-bold text-gray-900 lg:text-lg group-hover:text-gray-600">
-                      <a href="#" title="" className="">
+                      <span className="">
                         Relax more with pre-booked sessions
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-xs font-medium text-gray-500 lg:text-sm">
                       Hassle-free booking
@@ -399,21 +399,21 @@ Choose your time, book instantly, and arrive stress-free.
               className="overflow-hidden w-[300px] lg:w-[420px] transition-all duration-200 transform bg-white border border-gray-200 rounded-2xl hover:shadow-lg hover:-translate-y-1">
               <div className="px-4 py-5 sm:p-5">
                 <div className="flex items-start lg:items-center">
-                  <a href="#" title="" className="shrink-0">
+                  <div className="shrink-0">
                     <img className="lg:h-24 w-14 h-14 lg:w-24 rounded-xl object-cover" src={fittness}
                       alt="" />
-                  </a>
+                  </div>
 
                   <div className="flex-1 ml-4 lg:ml-6">
                     <p className="text-xs font-medium text-gray-900 lg:text-sm">
-                      <a href="#" title="" className="">
+                      <span className="">
                         Fitness
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-sm font-bold text-gray-900 lg:text-lg group-hover:text-gray-600">
-                      <a href="#" title="" className="">
+                      <span className="">
                         Book gym sessions on your schedule
-                      </a>
+                      </span>
                     </p>
                     <p className="mt-2 text-xs font-medium text-gray-500 lg:text-sm">
                       Flexible timings
