@@ -4,6 +4,7 @@ import healthcare from './healthcare.jpg';
 import services from './services.jpg';
 import wellness from './wellness.jpg';
 import fittness from './fittness.jpg';
+import Hiw from './Hiw';
 
 const Hero = () => {
   const scrollContainerRef = useRef(null);
@@ -74,7 +75,10 @@ Choose your time, book instantly, and arrive stress-free.
                 </div>
 
                 <button type="button"
-                  className="inline-flex relative items-center justify-center w-full sm:w-auto px-8 py-3 sm:text-sm text-base sm:py-3.5 font-semibold text-white transition-all duration-200 bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600">
+                  className="inline-flex relative items-center justify-center w-full sm:w-auto px-8 py-3 sm:text-sm text-base sm:py-3.5 font-semibold text-white transition-all duration-200 border border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2"
+                  style={{backgroundColor: '#4e71ff'}}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#4e71ff'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#4e71ff'}>
                   Search
                 </button>
               </div>
@@ -425,6 +429,7 @@ Choose your time, book instantly, and arrive stress-free.
           </div>
         </div>
       </section>
+      <Hiw />
     </div>
   );
 };

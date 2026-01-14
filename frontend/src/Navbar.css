@@ -56,11 +56,11 @@
 }
 
 .navbar-menu a:hover {
-  color: #aa40fa;
+  color: #4e71ff;
 }
 
 .navbar-button {
-  background: #2D2D2D;
+  background: #4e71ff;
   color: white;
   border: none;
   padding: 10px 20px;
@@ -72,7 +72,7 @@
 }
 
 .navbar-button:hover {
-  background: #aa40fa;
+  background: #4e71ff;
 }
 
 .hamburger {
