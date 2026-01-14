@@ -5,7 +5,7 @@
   right: 0;
   background: white;
   border-top: 1px solid rgba(78, 113, 255, 0.15);
-  display: flex;
+  display: none; /* Hidden by default on desktop */
   justify-content: space-around;
   align-items: center;
   padding: 8px 16px 8px 16px;
@@ -66,12 +66,13 @@
 
 /* Add padding to body to prevent content from being hidden behind bottom nav */
 body {
-  padding-bottom: 64px;
+  padding-bottom: 0; /* No padding on desktop */
 }
 
-/* Mobile optimization */
-@media (max-width: 600px) {
+/* Mobile optimization - only show on mobile */
+@media (max-width: 768px) {
   .bottom-nav {
+    display: flex; /* Show on mobile */
     padding: 6px 8px 6px 8px;
     height: 60px;
   }
@@ -91,6 +92,6 @@ body {
   }
 
   body {
-    padding-bottom: 60px;
+    padding-bottom: 60px; /* Add padding on mobile */
   }
 }
