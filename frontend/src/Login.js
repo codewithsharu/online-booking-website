@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Input } from 'antd';
+import SimpleCaptcha from './SimpleCaptcha';
+import smartwaitLogo from './smartwait-logo.png';
+import './Login.css';
 
 // Use environment variable from .env (REACT_APP_API_URL)
 // For mobile testing: set REACT_APP_API_URL=http://YOUR_PC_IP:3000 in .env
@@ -54,6 +57,25 @@ function Login() {
   const [resendLoading, setResendLoading] = useState(false);
   const [cooldown, setCooldown] = useState(false);
   const [remaining, setRemaining] = useState(0);
+  const [captchaInput, setCaptchaInput] = useState('');
+  const [captchaAnswer, setCaptchaAnswer] = useState('');
+  const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [currentBadge, setCurrentBadge] = useState(0);
+
+  // Security badges that flip/rotate
+  const securityBadges = [
+    { icon: 'https://dev.pdp.gokwik.co/kwikpass/assets/icons/carousel_icon.svg', text: '100% Secure & Spam Free' },
+    { icon: 'https://dev.pdp.gokwik.co/kwikpass/assets/icons/carousel_icon.svg', text: 'Instant OTP Verification' },
+    { icon: 'https://dev.pdp.gokwik.co/kwikpass/assets/icons/carousel_icon.svg', text: 'Trusted by Thousands' }
+  ];
+
+  // Rotate security badges
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentBadge((prev) => (prev + 1) % securityBadges.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // start a 60s cooldown after OTP is sent
   useEffect(() => {
@@ -66,7 +88,36 @@ function Login() {
     }
   }, [step, cooldown, remaining]);
 
+  // Handle CAPTCHA change from SimpleCaptcha component
+  const handleCaptchaChange = (userInput, correctAnswer) => {
+    setCaptchaInput(userInput);
+    setCaptchaAnswer(correctAnswer);
+  };
+
+  const handleCaptchaVerified = (verified) => {
+    setCaptchaVerified(verified);
+  };
+
+  const verifyCaptcha = () => {
+    // If already verified via component, return true
+    if (captchaVerified) {
+      return true;
+    }
+    
+    // Case-insensitive comparison
+    if (captchaInput.toLowerCase() !== captchaAnswer.toLowerCase()) {
+      setMessage('Captcha is incorrect');
+      return false;
+    }
+    return true;
+  };
+
   const sendOTP = async () => {
+    // Verify CAPTCHA first
+    if (!verifyCaptcha()) {
+      return;
+    }
+
     // Trim phone and validate
     const trimmedPhone = phone.trim();
     
@@ -228,12 +279,598 @@ function Login() {
   };
 
   return (
-    <div className="login-wrapper">
-      <div className="login-container">
+    <>
+      <style>{`
+        /* Login Component Styles */
+        .login-wrapper {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-height: 100vh;
+          padding: 20px;
+          background: linear-gradient(135deg, #4E71FF 0%, #4E71FF 100%);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .security-badge {
+          background: linear-gradient(135deg, rgba(78, 113, 255, 0.15) 0%, rgba(78, 113, 255, 0.1) 100%);
+          backdrop-filter: blur(10px);
+          border: 1.5px solid rgba(78, 113, 255, 0.25);
+          padding: 11px 20px;
+          border-radius: 50px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0;
+          margin-bottom: 18px;
+          box-shadow: 0 6px 24px rgba(78, 113, 255, 0.1);
+          position: relative;
+          width: 100%;
+          max-width: 340px;
+        }
+
+        .security-badge-content {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          width: 100%;
+          animation: fadeInText 0.5s ease;
+        }
+
+        .security-badge-icon {
+          width: 20px;
+          height: 20px;
+          object-fit: contain;
+          flex-shrink: 0;
+          opacity: 0.9;
+        }
+
+        .security-badge-text {
+          font-size: 12px;
+          font-weight: 600;
+          color: #2d3748;
+          text-align: center;
+          letter-spacing: 0.2px;
+        }
+
+        .security-badge-dots {
+          display: flex;
+          gap: 6px;
+          align-items: center;
+          justify-content: center;
+          position: absolute;
+          bottom: -14px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 10;
+        }
+
+        .security-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: rgba(78, 113, 255, 0.3);
+          transition: all 0.3s ease;
+          cursor: pointer;
+        }
+
+        .security-dot.active {
+          background: rgba(78, 113, 255, 0.8);
+          width: 14px;
+          border-radius: 3px;
+        }
+
+        @keyframes fadeInText {
+          from {
+            opacity: 0;
+            transform: translateY(5px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .login-container {
+          width: 100%;
+          max-width: 380px;
+          background: white;
+          border-radius: 16px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+          overflow: hidden;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .logo-container {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          padding: 20px 24px 14px 24px;
+          background: linear-gradient(180deg, rgba(78, 113, 255, 0.05) 0%, transparent 100%);
+          border-bottom: 1px solid rgba(78, 113, 255, 0.08);
+        }
+
+        .waitsmart-logo {
+          height: 110px;
+          width: auto;
+          object-fit: contain;
+          animation: logoFadeIn 0.6s ease;
+          margin-bottom: 4px;
+        }
+
+        @keyframes logoFadeIn {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        .login-form {
+          padding: 28px 24px;
+          position: relative;
+          transition: transform 0.45s cubic-bezier(.2,.9,.2,1), box-shadow 0.3s ease, opacity 0.45s ease;
+          will-change: transform, opacity;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 14px;
+          flex: 1;
+        }
+
+        .login-title {
+          font-size: 22px;
+          font-weight: 600;
+          text-align: center;
+          color: #1a202c;
+          letter-spacing: -0.5px;
+          margin: 0 0 6px 0;
+        }
+
+        .phone-input-group {
+          display: flex;
+          gap: 0;
+          margin-bottom: 0;
+          border: 2px solid #e2e8f0;
+          border-radius: 10px;
+          overflow: hidden;
+          background: #f8fafc;
+          transition: all 0.3s ease;
+          width: 100%;
+          max-width: 340px;
+        }
+
+        .phone-input-group:focus-within {
+          border-color: #4E71FF;
+          box-shadow: 0 4px 20px rgba(78, 113, 255, 0.15);
+          background: white;
+        }
+
+        .country-code {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 0 14px;
+          background: #f7fafc;
+          border-right: 2px solid #e2e8f0;
+          font-weight: 400;
+          color: #2d3748;
+          min-width: 85px;
+        }
+
+        .country-flag {
+          width: 22px;
+          height: 14px;
+          object-fit: cover;
+          border-radius: 2px;
+          display: block;
+        }
+
+        .code {
+          font-size: 14px;
+          letter-spacing: 0.5px;
+        }
+
+        .phone-input {
+          flex: 1;
+          border: none;
+          padding: 11px 14px;
+          font-size: 14px;
+          outline: none;
+          background: white;
+          color: #2d3748;
+          font-weight: 400;
+          transition: box-shadow 0.25s ease, transform 0.25s ease;
+        }
+
+        .phone-input::placeholder {
+          color: #a0aec0;
+        }
+
+        .phone-input:focus {
+          background: white;
+        }
+
+        .checkbox-label {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          margin-bottom: 8px;
+          cursor: pointer;
+          font-size: 12px;
+          line-height: 1.4;
+          color: #4a5568;
+          font-weight: 400;
+          width: 100%;
+          max-width: 360px;
+        }
+
+        .checkbox-label input {
+          width: 16px;
+          height: 16px;
+          cursor: pointer;
+          accent-color: #4E71FF;
+          border-radius: 4px;
+          margin-top: 2px;
+        }
+
+        .checkbox-label span {
+          display: inline-block;
+          line-height: 1.4;
+        }
+
+        .otp-subtitle {
+          text-align: center;
+          color: #718096;
+          font-size: 13px;
+          margin-bottom: 28px;
+          line-height: 1.6;
+          font-weight: 400;
+        }
+
+        .submit-btn {
+          width: 100%;
+          max-width: 340px;
+          padding: 12px 14px;
+          font-size: 14px;
+          font-weight: 600;
+          color: #ffffff;
+          background: linear-gradient(135deg, #4E71FF 0%, #4E71FF 100%);
+          border: none;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          margin-top: 4px;
+          box-shadow: 0 4px 15px rgba(78, 113, 255, 0.4);
+          letter-spacing: 0.3px;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 25px rgba(78, 113, 255, 0.5);
+        }
+
+        .submit-btn:active:not(:disabled) {
+          transform: translateY(0);
+        }
+
+        .submit-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .error-msg {
+          color: #f56565;
+          font-size: 13px;
+          text-align: center;
+          margin: 16px 0;
+          font-weight: 400;
+        }
+
+        .resend-row {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 10px;
+          margin-top: 12px;
+        }
+
+        .resend-hint {
+          font-size: 13px;
+          color: #718096;
+        }
+
+        .resend-link-btn {
+          background: transparent;
+          border: none;
+          color: #667eea;
+          font-weight: 600;
+          cursor: pointer;
+          padding: 0 2px;
+        }
+
+        .resend-link-btn:hover:not(:disabled) {
+          text-decoration: underline;
+        }
+
+        .resend-link-btn:disabled,
+        .resend-link-btn[aria-disabled='true'] {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+
+        .resend-timer {
+          font-size: 12px;
+          color: #A0AEC0;
+        }
+
+        .otp-input-wrapper {
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          margin: 0 auto 20px auto;
+        }
+
+        .otp-input-wrapper .ant-input-otp {
+          display: flex;
+          justify-content: center;
+          gap: 12px;
+        }
+
+        .otp-input-wrapper .ant-input {
+          width: 52px;
+          height: 60px;
+          text-align: center;
+          font-size: 22px;
+          font-weight: 600;
+          border: 2px solid #e2e8f0;
+          border-radius: 12px;
+          box-shadow: none;
+          transition: all 0.2s ease;
+        }
+
+        .otp-input-wrapper .ant-input:focus {
+          border-color: #4E71FF;
+          box-shadow: 0 4px 18px rgba(78, 113, 255, 0.2);
+          background: #f9fafb;
+        }
+
+        .login-form.verified {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          min-height: 400px;
+          text-align: center;
+        }
+
+        .success-icon {
+          width: 80px;
+          height: 80px;
+          background: linear-gradient(135deg, #4E71FF 0%, #4E71FF 100%);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 40px;
+          color: white;
+          margin-bottom: 25px;
+          animation: scaleIn 0.5s ease;
+          box-shadow: 0 8px 24px rgba(78, 113, 255, 0.4);
+        }
+
+        .success-icon svg {
+          width: 80px;
+          height: 80px;
+        }
+
+        .check-circle {
+          stroke-dasharray: 240;
+          stroke-dashoffset: 240;
+          animation: drawCircle 0.7s ease forwards;
+        }
+
+        .check-path {
+          stroke-dasharray: 50;
+          stroke-dashoffset: 50;
+          animation: drawCheck 0.45s ease 0.6s forwards;
+        }
+
+        @keyframes drawCircle {
+          to {
+            stroke-dashoffset: 0;
+          }
+        }
+
+        @keyframes drawCheck {
+          to {
+            stroke-dashoffset: 0;
+          }
+        }
+
+        .login-form.verified h2 {
+          font-size: 20px;
+          color: #2d3748;
+          margin-bottom: 12px;
+          font-weight: 500;
+        }
+
+        .login-form.verified p {
+          color: #718096;
+          font-size: 14px;
+          font-weight: 400;
+        }
+
+        @keyframes fadeIn {
+          0% {
+            opacity: 0;
+            transform: translateY(12px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes scaleIn {
+          0% {
+            transform: scale(0);
+            opacity: 0;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+
+        .fade-in {
+          animation: fadeIn 0.4s ease;
+        }
+
+        .powered-by-footer {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          margin-top: 6px;
+          padding-bottom: 2px;
+        }
+
+        .powered-text {
+          font-size: 9px;
+          font-weight: 400;
+          color: #a0a8b8;
+          letter-spacing: 0.2px;
+        }
+
+        .smshub-brand {
+          font-size: 9px;
+          font-weight: 600;
+          background: linear-gradient(135deg, #4E71FF 0%, #7B68FF 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          letter-spacing: 0.3px;
+        }
+
+        @media (max-width: 600px) {
+          .login-wrapper {
+            padding: 12px;
+          }
+
+          .login-container {
+            width: 100%;
+            max-width: 100%;
+            border-radius: 20px;
+          }
+
+          .logo-container {
+            padding: 16px 16px 12px 16px;
+          }
+
+          .waitsmart-logo {
+            height: 85px;
+          }
+
+          .login-form {
+            padding: 20px 16px;
+            gap: 12px;
+          }
+
+          .security-badge {
+            max-width: 100%;
+            padding: 9px 16px;
+            margin-bottom: 14px;
+          }
+
+          .security-badge-text {
+            font-size: 11px;
+          }
+
+          .security-badge-icon {
+            width: 18px;
+            height: 18px;
+          }
+
+          .login-title {
+            font-size: 20px;
+            margin-bottom: 2px;
+          }
+
+          .phone-input-group {
+            max-width: 100%;
+          }
+
+          .submit-btn {
+            max-width: 100%;
+            padding: 13px 16px;
+            font-size: 15px;
+          }
+
+          .powered-text {
+            font-size: 8px;
+          }
+
+          .smshub-brand {
+            font-size: 8px;
+          }
+
+          .checkbox-label {
+            font-size: 11px;
+          }
+
+          .otp-input-wrapper .ant-input {
+            width: 48px;
+            height: 56px;
+            font-size: 20px;
+          }
+        }
+      `}</style>
+      <div className="login-wrapper">
+        <div className="login-container">
+          {/* WaitSmart Logo */}
+          <div className="logo-container">
+            <img src={smartwaitLogo} alt="WaitSmart" className="waitsmart-logo" />
+            {/* Powered by SMSHUB */}
+            <div className="powered-by-footer">
+              <span className="powered-text">powered by</span>
+              <span className="smshub-brand">SMSHUB</span>
+            </div>
+          </div>
+
         {/* Phone Step */}
         {step === 'phone' && (
           <div className="login-form fade-in">
-            <img src="/assets/login.svg" alt="Login" className="login-hero" />
+            {/* Animated Security Badge with Dots Below On Border */}
+            <div className="security-badge">
+              <div className="security-badge-content" key={currentBadge}>
+                <img 
+                  src={securityBadges[currentBadge].icon} 
+                  alt="security" 
+                  className="security-badge-icon" 
+                />
+                <span className="security-badge-text">{securityBadges[currentBadge].text}</span>
+              </div>
+              <div className="security-badge-dots">
+                {securityBadges.map((_, index) => (
+                  <div 
+                    key={index} 
+                    className={`security-dot ${index === currentBadge ? 'active' : ''}`}
+                  />
+                ))}
+              </div>
+            </div>
+
             <h1 className="login-title">Login / Signup</h1>
 
             <div className="phone-input-group">
@@ -259,19 +896,33 @@ function Login() {
               />
             </div>
 
-              {/* Accept & Agree checkbox (required) now below the number input */}
-              <label className="checkbox-label" style={{marginBottom: '12px'}}>
-                <input 
-                  type="checkbox" 
-                  checked={notify}
-                  onChange={(e) => setNotify(e.target.checked)}
+            {/* SimpleCaptcha Component - Show only after phone is filled */}
+            {phone.length === 10 && (
+              <>
+                <SimpleCaptcha 
+                  onCaptchaChange={handleCaptchaChange}
+                  onVerified={handleCaptchaVerified}
                 />
-                <span>I accept and agree to the Privacy Policy & Terms.</span>
-              </label>
+
+                {/* Accept & Agree checkbox (required) now below the captcha */}
+                <label className="checkbox-label" style={{marginBottom: '12px'}}>
+                  <input 
+                    type="checkbox" 
+                    checked={notify}
+                    onChange={(e) => setNotify(e.target.checked)}
+                  />
+                  <span>I accept and agree to the Privacy Policy & Terms.</span>
+                </label>
+              </>
+            )}
 
             {message && <p className="error-msg">{message}</p>}
 
-            <button onClick={sendOTP} disabled={loading || phone.length !== 10 || !notify} className="submit-btn">
+            <button 
+              onClick={sendOTP} 
+              disabled={loading || phone.length !== 10 || !notify || !captchaVerified} 
+              className="submit-btn"
+            >
               {loading ? 'Sending...' : 'Submit'}
             </button>
           </div>
@@ -333,6 +984,7 @@ function Login() {
         )}
       </div>
     </div>
+    </>
   );
 }
 
