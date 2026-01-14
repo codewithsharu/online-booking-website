@@ -12,6 +12,7 @@ import Search from './Search';
 import ProtectedRoute from './ProtectedRoute';
 import Hero from './Hero';
 import BottomNav from './BottomNav';
+import Navbar from './Navbar';
 
 function App() {
   const token = localStorage.getItem('token');
@@ -19,6 +20,7 @@ function App() {
 
   return (
     <Router>
+      <Navbar />
       <Routes>
         {/* Login route */}
         <Route 

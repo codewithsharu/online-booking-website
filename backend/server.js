@@ -43,8 +43,8 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
 // Test accounts (bypass OTP for testing)
 const TEST_ACCOUNTS = {
-  '7816072521': { role: 'user', name: 'Test User' },
-  '7816072522': { role: 'merchant', name: 'Test Merchant', merchantId: 'TEST_MERCHANT_001' }
+  '8247855457': { role: 'user', name: 'Test User' },
+  '8247855457': { role: 'merchant', name: 'Test Merchant', merchantId: 'TEST_MERCHANT_001' }
 };
 
 // Approved SMS template (must match provider's template)
