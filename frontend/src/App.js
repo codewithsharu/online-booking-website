@@ -10,6 +10,8 @@ import AdminApproval from './AdminApproval';
 import Clear from './Clear';
 import Search from './Search';
 import ProtectedRoute from './ProtectedRoute';
+import Hero from './Hero';
+import BottomNav from './BottomNav';
 
 function App() {
   const token = localStorage.getItem('token');
@@ -98,9 +100,10 @@ function App() {
           element={<Clear />}
         />
 
-        {/* Default route */}
-        <Route path="/" element={<Navigate to="/login" />} />
+        {/* Root landing - show hero, do not auto-redirect to login */}
+        <Route path="/" element={<Hero />} />
       </Routes>
+      <BottomNav />
     </Router>
   );
 }
