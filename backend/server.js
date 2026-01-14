@@ -237,20 +237,34 @@ app.post('/api/verify-otp', async (req, res) => {
       return res.status(400).json({ error: 'Phone and OTP required' });
     }
 
-    // Check if it's a test account - accept OTP 111111
+    // Check if it's a test account - accept OTP 1111
     const testAccount = TEST_ACCOUNTS[normalizedPhone];
-    let isValid = false;
+    let verifyResult = { isValid: false };
     
     if (testAccount && otp === '1111') {
-      isValid = true;
+      verifyResult.isValid = true;
+      verifyResult.reason = 'SUCCESS';
       console.log(`🧪 Test account OTP accepted: ${normalizedPhone}`);
     } else {
-      // Regular OTP verification
-      isValid = OTPService.verifyOTP(normalizedPhone, otp);
+      // Regular OTP verification with detailed response
+      verifyResult = OTPService.verifyOTP(normalizedPhone, otp);
     }
     
-    if (!isValid) {
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    if (!verifyResult.isValid) {
+      const errorMessages = {
+        'OTP_EXPIRED': 'OTP has expired. Please request a new OTP.',
+        'OTP_NOT_FOUND': 'OTP not found. Please request a new OTP.',
+        'INVALID_OTP': 'Invalid OTP. Please enter the correct code.',
+        'TOO_MANY_ATTEMPTS': 'Too many incorrect attempts. Please request a new OTP.'
+      };
+      
+      const errorMessage = errorMessages[verifyResult.reason] || 'Invalid or expired OTP';
+      console.log(`❌ OTP verification failed [${verifyResult.reason}] for ${normalizedPhone}`);
+      
+      return res.status(400).json({ 
+        error: errorMessage,
+        reason: verifyResult.reason
+      });
     }
 
     // Find or create user

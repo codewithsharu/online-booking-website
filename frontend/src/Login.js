@@ -61,6 +61,8 @@ function Login() {
   const [captchaAnswer, setCaptchaAnswer] = useState('');
   const [captchaVerified, setCaptchaVerified] = useState(false);
   const [currentBadge, setCurrentBadge] = useState(0);
+  const [otpTimeRemaining, setOtpTimeRemaining] = useState(0); // Track OTP validity time
+  const [otpWarning, setOtpWarning] = useState(false); // Show warning when OTP about to expire
 
   // Security badges that flip/rotate
   const securityBadges = [
@@ -87,6 +89,25 @@ function Login() {
       setCooldown(false);
     }
   }, [step, cooldown, remaining]);
+
+  // Track OTP validity countdown (10 minutes = 600 seconds)
+  useEffect(() => {
+    if (step === 'otp' && otpTimeRemaining > 0) {
+      const t = setTimeout(() => setOtpTimeRemaining((s) => s - 1), 1000);
+      
+      // Show warning when OTP has less than 2 minutes remaining
+      if (otpTimeRemaining <= 120) {
+        setOtpWarning(true);
+      }
+      
+      return () => clearTimeout(t);
+    }
+    
+    // Auto-clear OTP if it expires
+    if (step === 'otp' && otpTimeRemaining === 0 && otpTimeRemaining !== 0) {
+      setMessage('⏰ OTP has expired. Please request a new one.');
+    }
+  }, [step, otpTimeRemaining]);
 
   // Handle CAPTCHA change from SimpleCaptcha component
   const handleCaptchaChange = (userInput, correctAnswer) => {
@@ -153,6 +174,8 @@ function Login() {
         setMessage('');
         setCooldown(true);
         setRemaining(60);
+        setOtpTimeRemaining(600); // 10 minutes = 600 seconds
+        setOtpWarning(false);
         
         // Auto-fill OTP for test accounts
         if (data.isTestAccount) {
@@ -195,6 +218,11 @@ function Login() {
       if (res.ok) {
         setCooldown(true);
         setRemaining(60);
+        setOtpTimeRemaining(600); // Reset OTP timer to 10 minutes
+        setOtpWarning(false); // Clear warning
+        setOtp(''); // Clear previous OTP input
+        setMessage('✅ New OTP sent. Please check your SMS.');
+        
         if (data.otp) {
           console.log('🔐 TEST OTP (resend):', data.otp);
         }
@@ -268,7 +296,24 @@ function Login() {
           }
         }, 2000);
       } else {
-        setMessage(data.error || `Invalid OTP (status ${res.status})`);
+        // Handle specific OTP errors with helpful messages
+        const reason = data.reason;
+        const errorMessages = {
+          'OTP_EXPIRED': '⏰ OTP has expired. Please request a new one.',
+          'OTP_NOT_FOUND': '❌ No OTP found. Please request a new one.',
+          'INVALID_OTP': '❌ Incorrect OTP. Please try again.',
+          'TOO_MANY_ATTEMPTS': '🔒 Too many incorrect attempts. Please request a new OTP.'
+        };
+        
+        const userMessage = errorMessages[reason] || data.error || 'OTP verification failed';
+        setMessage(userMessage);
+        
+        // Auto-trigger resend if OTP expired
+        if (reason === 'OTP_EXPIRED') {
+          setTimeout(() => {
+            console.log('Auto-resending OTP due to expiration...');
+          }, 1500);
+        }
       }
     } catch (error) {
       console.error('❌ Network error verifying OTP:', error);
@@ -532,9 +577,50 @@ function Login() {
           text-align: center;
           color: #718096;
           font-size: 13px;
-          margin-bottom: 28px;
+          margin-bottom: 8px;
           line-height: 1.6;
           font-weight: 400;
+        }
+
+        .otp-timer {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 10px 14px;
+          background: linear-gradient(135deg, rgba(78, 113, 255, 0.08) 0%, rgba(78, 113, 255, 0.05) 100%);
+          border: 1px solid rgba(78, 113, 255, 0.15);
+          border-radius: 8px;
+          margin-bottom: 20px;
+          font-size: 12px;
+          font-weight: 500;
+        }
+
+        .otp-timer.warning {
+          background: linear-gradient(135deg, rgba(237, 137, 54, 0.08) 0%, rgba(237, 137, 54, 0.05) 100%);
+          border-color: rgba(237, 137, 54, 0.2);
+          color: #d97706;
+        }
+
+        .otp-timer-icon {
+          font-size: 14px;
+        }
+
+        .otp-timer-text {
+          color: #4a5568;
+        }
+
+        .otp-timer.warning .otp-timer-text {
+          color: #d97706;
+        }
+
+        .otp-timer-time {
+          font-weight: 700;
+          color: #4E71FF;
+        }
+
+        .otp-timer.warning .otp-timer-time {
+          color: #d97706;
         }
 
         .submit-btn {
@@ -834,6 +920,12 @@ function Login() {
             height: 56px;
             font-size: 20px;
           }
+
+          .otp-timer {
+            font-size: 11px;
+            padding: 8px 12px;
+            margin-bottom: 16px;
+          }
         }
       `}</style>
       <div className="login-wrapper">
@@ -934,6 +1026,13 @@ function Login() {
             <h1 className="login-title">Verify OTP</h1>
             <p className="otp-subtitle">Enter 4 digit verification code sent to +91{phone}</p>
             
+            {/* OTP Timer Display */}
+            <div className={`otp-timer ${otpWarning ? 'warning' : ''}`}>
+              <span className="otp-timer-icon">⏱</span>
+              <span className="otp-timer-text">OTP expires in:</span>
+              <span className="otp-timer-time">{otpTimeRemaining > 0 ? `${otpTimeRemaining}s` : 'Expired'}</span>
+            </div>
+            
             <div className="otp-input-wrapper">
               <Input.OTP
                 length={4}
@@ -949,7 +1048,7 @@ function Login() {
 
                 {message && <p className="error-msg">{message}</p>}
 
-                <button onClick={verifyOTP} disabled={loading || otp.length !== 4} className="submit-btn">
+                <button onClick={verifyOTP} disabled={loading || otp.length !== 4 || otpTimeRemaining === 0} className="submit-btn">
                   {loading ? 'Verifying...' : 'Verify OTP'}
                 </button>
 
@@ -959,12 +1058,12 @@ function Login() {
                     type="button"
                     className="resend-link-btn"
                     onClick={resendOTP}
-                    disabled={resendLoading || cooldown}
-                    aria-disabled={resendLoading || cooldown}
+                    disabled={resendLoading || (cooldown && remaining > 0)}
+                    aria-disabled={resendLoading || (cooldown && remaining > 0)}
                   >
                     {resendLoading ? 'Resending…' : 'Resend'}
                   </button>
-                  {cooldown && <span className="resend-timer">{remaining}s</span>}
+                  {cooldown && remaining > 0 && <span className="resend-timer">{remaining}s</span>}
                 </div>
               </div>
             )}
