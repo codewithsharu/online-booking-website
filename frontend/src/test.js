@@ -5,7 +5,7 @@ import services from './services.jpg';
 import wellness from './wellness.jpg';
 import fittness from './fittness.jpg';
 
-const Hero = () => {
+const Test = () => {
   const scrollContainerRef = useRef(null);
   const [isPaused, setIsPaused] = useState(false);
 
@@ -429,4 +429,4 @@ Choose your time, book instantly, and arrive stress-free.
   );
 };
 
-export default Hero;
+export default Test;

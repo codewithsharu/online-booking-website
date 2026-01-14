@@ -13,6 +13,7 @@ import ProtectedRoute from './ProtectedRoute';
 import Hero from './Hero';
 import BottomNav from './BottomNav';
 import Navbar from './Navbar';
+import Test from './test';
 
 function App() {
   const token = localStorage.getItem('token');
@@ -100,6 +101,12 @@ function App() {
         <Route 
           path="/clear" 
           element={<Clear />}
+        />
+
+        {/* Test route */}
+        <Route 
+          path="/test" 
+          element={<Test />}
         />
 
         {/* Root landing - show hero, do not auto-redirect to login */}
