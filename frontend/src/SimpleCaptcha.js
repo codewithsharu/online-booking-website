@@ -11,7 +11,7 @@ const SimpleCaptcha = ({ onCaptchaChange, onVerified }) => {
   const generateCaptcha = () => {
     const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
     let newCaptcha = '';
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 4; i++) {
       newCaptcha += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     setCaptcha(newCaptcha);
@@ -52,7 +52,7 @@ const SimpleCaptcha = ({ onCaptchaChange, onVerified }) => {
       ctx.save();
       
       // Position
-      const x = 12 + i * 32;
+      const x = 20 + i * 40;
       const y = height / 2;
 
       ctx.translate(x, y);
@@ -100,7 +100,7 @@ const SimpleCaptcha = ({ onCaptchaChange, onVerified }) => {
   // Initialize captcha on mount
   useEffect(() => {
     generateCaptcha();
-  }, []);
+  }, [generateCaptcha]);
 
   return (
     <div className="captcha-container">
@@ -112,7 +112,7 @@ const SimpleCaptcha = ({ onCaptchaChange, onVerified }) => {
             <div className="captcha-box">
               <canvas
                 ref={canvasRef}
-                width={220}
+                width={160}
                 height={50}
                 className="captcha-canvas"
               />
@@ -132,7 +132,7 @@ const SimpleCaptcha = ({ onCaptchaChange, onVerified }) => {
             value={userInput}
             onChange={handleInputChange}
             placeholder="Enter text above"
-            maxLength="6"
+            maxLength="4"
             className="captcha-input"
             autoComplete="off"
             autoCapitalize="none"

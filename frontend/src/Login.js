@@ -75,7 +75,7 @@ function Login() {
       setCurrentBadge((prev) => (prev + 1) % securityBadges.length);
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [securityBadges.length]);
 
   // start a 60s cooldown after OTP is sent
   useEffect(() => {
