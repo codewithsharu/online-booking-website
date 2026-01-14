@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './SimpleCaptcha.css';
 
 const SimpleCaptcha = ({ onCaptchaChange, onVerified }) => {
@@ -97,10 +97,11 @@ const SimpleCaptcha = ({ onCaptchaChange, onVerified }) => {
     onCaptchaChange(value, captcha);
   };
 
-  // Initialize captcha on mount
+  // Initialize captcha on mount - empty dependency array to run once on mount
   useEffect(() => {
     generateCaptcha();
-  }, [generateCaptcha]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="captcha-container">
