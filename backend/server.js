@@ -397,6 +397,84 @@ app.post('/api/save-name', verifyToken, async (req, res) => {
   }
 });
 
+// Upload profile picture
+app.post('/api/user/profile-picture', verifyToken, upload.single('profilePicture'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Upload to Cloudinary
+    const result = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'profile-pictures',
+          transformation: [
+            { width: 200, height: 200, crop: 'fill', gravity: 'face' },
+            { quality: 'auto' }
+          ]
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      uploadStream.end(req.file.buffer);
+    });
+
+    // Update user with profile picture URL
+    const user = await User.findOneAndUpdate(
+      { phone: req.user.phone },
+      { profilePicture: result.secure_url, updatedAt: Date.now() },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log(`✅ Profile picture updated for ${req.user.phone}`);
+    res.json({ 
+      success: true, 
+      message: 'Profile picture uploaded successfully', 
+      profilePicture: result.secure_url,
+      user 
+    });
+  } catch (error) {
+    console.error('Error uploading profile picture:', error);
+    res.status(500).json({ error: 'Failed to upload profile picture' });
+  }
+});
+
+// Update user profile
+app.put('/api/user/profile', verifyToken, async (req, res) => {
+  try {
+    const { name } = req.body;
+    
+    const updateData = {};
+    if (name && name.trim()) {
+      updateData.name = name.trim();
+    }
+    updateData.updatedAt = Date.now();
+
+    const user = await User.findOneAndUpdate(
+      { phone: req.user.phone },
+      updateData,
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log(`✅ Profile updated for ${req.user.phone}`);
+    res.json({ success: true, message: 'Profile updated successfully', user });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
 // ==================== MERCHANT APPLICATION ENDPOINTS ====================
 
 // Submit merchant application

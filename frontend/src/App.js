@@ -14,6 +14,7 @@ import Hero from './Hero';
 import BottomNav from './BottomNav';
 import Navbar from './Navbar';
 import Test from './test';
+import UserProfile from './UserProfile';
 
 function App() {
   const token = localStorage.getItem('token');
@@ -41,6 +42,16 @@ function App() {
           element={
             <ProtectedRoute>
               <Home />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* User Profile route */}
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute>
+              <UserProfile />
             </ProtectedRoute>
           }
         />
