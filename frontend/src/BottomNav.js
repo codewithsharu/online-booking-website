@@ -61,16 +61,21 @@ function BottomNav() {
 
   return (
     <div className="bottom-nav">
-      {navItems.map((item) => (
-        <button
-          key={item.id}
-          className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
-          onClick={() => navigate(item.path)}
-        >
-          <div className="nav-icon">{item.icon}</div>
-          <span className="nav-label">{item.label}</span>
-        </button>
-      ))}
+      {navItems.map((item) => {
+        const isActive = location.pathname === item.path || 
+                        (item.path === '/merchant-dashboard' && location.pathname.includes('/merchant-dashboard'));
+        return (
+          <button
+            key={item.id}
+            className={`nav-item ${isActive ? 'active' : ''}`}
+            onClick={() => navigate(item.path)}
+            style={{ animation: isActive ? 'iconBounce 0.5s ease' : 'none' }}
+          >
+            <div className="nav-icon">{item.icon}</div>
+            <span className="nav-label">{item.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

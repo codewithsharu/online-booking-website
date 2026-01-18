@@ -5,7 +5,12 @@ import services from './services.jpg';
 import wellness from './wellness.jpg';
 import fittness from './fittness.jpg';
 import Hiw from './Hiw';
-
+import Gyb from './gyb';
+import Wcu from './Wcu';
+import FinalCta from './FinalCta';
+import ContactForm from './ContactForm';
+import Faq from './Faq';
+import Footer from './Footer';
 const Hero = () => {
   const scrollContainerRef = useRef(null);
   const [isPaused, setIsPaused] = useState(false);
@@ -430,6 +435,12 @@ Choose your time, book instantly, and arrive stress-free.
         </div>
       </section>
       <Hiw />
+      <Gyb />
+      <Wcu />
+      <FinalCta />
+      <ContactForm />
+      <Faq />
+      <Footer />
     </div>
   );
 };
