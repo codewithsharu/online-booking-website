@@ -3,7 +3,7 @@ import logo from './smartwait-logo.png';
 
 const Footer = () => {
   return (
-    <div className="bg-slate-900 py-16 px-4 sm:px-6 lg:px-8">
+    <div className="bg-black py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto text-center">
         <p className="text-blue-400 font-semibold mb-4 uppercase text-sm tracking-wide">
           JOIN THOUSANDS OF BUSINESSES
@@ -60,7 +60,7 @@ const Footer = () => {
           </div>
 
           <p className="text-gray-400 text-sm mt-8">
-            © 2026 WaitSmart. All rights reserved. Making appointments smarter.
+            © 2026 WaitSmart. All rights reserved.
           </p>
         </div>
       </div>
