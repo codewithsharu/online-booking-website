@@ -6,9 +6,11 @@ import Admin from './Admin';
 import AdminLogin from './AdminLogin';
 import MerchantRegister from './MerchantRegister';
 import MerchantDashboard from './MerchantDashboard';
+import MerchantBookings from './MerchantBookings';
 import AdminApproval from './AdminApproval';
 import Clear from './Clear';
 import Search from './Search';
+import Bookings from './Bookings';
 import ProtectedRoute from './ProtectedRoute';
 import Hero from './Hero';
 import BottomNav from './BottomNav';
@@ -56,6 +58,16 @@ function App() {
           }
         />
 
+        {/* User Bookings route */}
+        <Route 
+          path="/bookings" 
+          element={
+            <ProtectedRoute>
+              <Bookings />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Merchant registration - No authentication required */}
         <Route 
           path="/merchant-register" 
@@ -68,6 +80,16 @@ function App() {
           element={
             <ProtectedRoute requiredRole="merchant">
               <MerchantDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Merchant bookings management */}
+        <Route 
+          path="/merchant-bookings" 
+          element={
+            <ProtectedRoute requiredRole="merchant">
+              <MerchantBookings />
             </ProtectedRoute>
           }
         />

@@ -11,6 +11,7 @@ require('dotenv').config();
 const User = require('./models/User');
 const MerchantInfo = require('./models/MerchantInfo');
 const OTPService = require('./models/OTPService');
+const Booking = require('./models/Booking');
 
 const app = express();
 app.use(express.json());
@@ -36,15 +37,15 @@ const HOST = process.env.HOST || '0.0.0.0';
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_change_in_production';
 const MONGODB_URI = process.env.MONGODB_URI;
 const SMS_API_URL = process.env.SMS_API_URL || 'http://cloud.smsindiahub.in/vendorsms/pushsms.aspx';
-const SMS_API_KEY = process.env.SMS_API_KEY || 'f1af4eb84ee84103bb7ea19cb9459ccf';
+const SMS_API_KEY = process.env.SMS_API_KEY || '60N0yVxgeUOyDRkzgrsSDw';
 const SMS_SENDER_ID = process.env.SMS_SENDER_ID || 'SMSHUB';
 const SMS_GWID = process.env.SMS_GWID || '2';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
 // Test accounts (bypass OTP for testing)
 const TEST_ACCOUNTS = {
-  '8247855457': { role: 'user', name: 'Test User' },
-  '8247855457': { role: 'merchant', name: 'Test Merchant', merchantId: 'TEST_MERCHANT_001' }
+  '7816072521': { role: 'user', name: 'Test User' },
+  '7816072522': { role: 'merchant', name: 'Test Merchant', merchantId: 'TEST_MERCHANT_001' }
 };
 
 // Approved SMS template (must match provider's template)
@@ -394,84 +395,6 @@ app.post('/api/save-name', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Error saving name:', error);
     res.status(500).json({ error: 'Failed to save name' });
-  }
-});
-
-// Upload profile picture
-app.post('/api/user/profile-picture', verifyToken, upload.single('profilePicture'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-
-    // Upload to Cloudinary
-    const result = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder: 'profile-pictures',
-          transformation: [
-            { width: 200, height: 200, crop: 'fill', gravity: 'face' },
-            { quality: 'auto' }
-          ]
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      );
-      uploadStream.end(req.file.buffer);
-    });
-
-    // Update user with profile picture URL
-    const user = await User.findOneAndUpdate(
-      { phone: req.user.phone },
-      { profilePicture: result.secure_url, updatedAt: Date.now() },
-      { new: true }
-    );
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    console.log(`✅ Profile picture updated for ${req.user.phone}`);
-    res.json({ 
-      success: true, 
-      message: 'Profile picture uploaded successfully', 
-      profilePicture: result.secure_url,
-      user 
-    });
-  } catch (error) {
-    console.error('Error uploading profile picture:', error);
-    res.status(500).json({ error: 'Failed to upload profile picture' });
-  }
-});
-
-// Update user profile
-app.put('/api/user/profile', verifyToken, async (req, res) => {
-  try {
-    const { name } = req.body;
-    
-    const updateData = {};
-    if (name && name.trim()) {
-      updateData.name = name.trim();
-    }
-    updateData.updatedAt = Date.now();
-
-    const user = await User.findOneAndUpdate(
-      { phone: req.user.phone },
-      updateData,
-      { new: true }
-    );
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    console.log(`✅ Profile updated for ${req.user.phone}`);
-    res.json({ success: true, message: 'Profile updated successfully', user });
-  } catch (error) {
-    console.error('Error updating profile:', error);
-    res.status(500).json({ error: 'Failed to update profile' });
   }
 });
 
@@ -1092,6 +1015,374 @@ app.delete('/api/admin/users/:phone', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Error deleting user:', error);
     res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// ==================== BOOKING ENDPOINTS ====================
+
+// Generate booking ID
+const generateBookingId = () => {
+  const timestamp = Date.now().toString(36).toUpperCase();
+  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `BK${timestamp}${random}`;
+};
+
+// Create a new booking (user)
+app.post('/api/bookings', verifyToken, async (req, res) => {
+  try {
+    const { merchantId, service, bookingDate, timeSlot, userNote } = req.body;
+
+    if (!merchantId || !service || !bookingDate || !timeSlot) {
+      return res.status(400).json({ error: 'Merchant, service, date, and time slot are required' });
+    }
+
+    // Get user info
+    const user = await User.findOne({ phone: req.user.phone });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!user.name) {
+      return res.status(400).json({ error: 'Please set your name before booking' });
+    }
+
+    // Get merchant info
+    const merchant = await MerchantInfo.findOne({ merchantId, status: 'approved' });
+    if (!merchant) {
+      return res.status(404).json({ error: 'Merchant not found or not approved' });
+    }
+
+    // Check if slot is already booked
+    const existingBooking = await Booking.findOne({
+      merchantId,
+      bookingDate: new Date(bookingDate),
+      timeSlot,
+      status: { $in: ['pending', 'confirmed'] }
+    });
+
+    if (existingBooking) {
+      return res.status(400).json({ error: 'This time slot is already booked' });
+    }
+
+    // Calculate end time based on service duration or slot duration
+    const duration = service.duration || merchant.slotDuration || 30;
+    const [hours, minutes] = timeSlot.split(':').map(Number);
+    const endMinutes = hours * 60 + minutes + duration;
+    const endHours = Math.floor(endMinutes / 60);
+    const endMins = endMinutes % 60;
+    const endTime = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
+
+    const booking = await Booking.create({
+      bookingId: generateBookingId(),
+      userId: user._id.toString(),
+      userPhone: user.phone,
+      userName: user.name,
+      merchantId,
+      merchantPhone: merchant.phone,
+      shopName: merchant.shopName,
+      shopAddress: merchant.shopAddress,
+      service: {
+        name: service.name,
+        price: service.price || null,
+        duration: duration
+      },
+      bookingDate: new Date(bookingDate),
+      timeSlot,
+      endTime,
+      userNote: userNote || null,
+      status: 'pending'
+    });
+
+    console.log(`📅 New booking created: ${booking.bookingId} by ${user.phone}`);
+    res.json({ success: true, booking });
+  } catch (error) {
+    console.error('Error creating booking:', error);
+    res.status(500).json({ error: 'Failed to create booking' });
+  }
+});
+
+// Get user's bookings
+app.get('/api/bookings', verifyToken, async (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+    const numericPage = parseInt(page, 10);
+    const numericLimit = parseInt(limit, 10);
+
+    let filter = { userPhone: req.user.phone };
+    if (status) {
+      filter.status = status;
+    }
+
+    const bookings = await Booking.find(filter)
+      .sort({ bookingDate: -1, timeSlot: -1 })
+      .skip((numericPage - 1) * numericLimit)
+      .limit(numericLimit)
+      .lean();
+
+    const total = await Booking.countDocuments(filter);
+
+    res.json({
+      bookings,
+      pagination: {
+        total,
+        page: numericPage,
+        pages: Math.ceil(total / numericLimit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user bookings:', error);
+    res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+});
+
+// Get single booking details
+app.get('/api/bookings/:bookingId', verifyToken, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    
+    const booking = await Booking.findOne({ bookingId }).lean();
+    
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    // Check if user has access (user who booked or merchant)
+    const isUser = booking.userPhone === req.user.phone;
+    const isMerchant = req.user.merchantId && booking.merchantId === req.user.merchantId;
+
+    if (!isUser && !isMerchant && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized to view this booking' });
+    }
+
+    res.json({ booking });
+  } catch (error) {
+    console.error('Error fetching booking:', error);
+    res.status(500).json({ error: 'Failed to fetch booking' });
+  }
+});
+
+// Cancel booking (user)
+app.post('/api/bookings/:bookingId/cancel', verifyToken, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { reason } = req.body;
+
+    const booking = await Booking.findOne({ bookingId });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    if (booking.userPhone !== req.user.phone) {
+      return res.status(403).json({ error: 'Not authorized to cancel this booking' });
+    }
+
+    if (['cancelled', 'completed'].includes(booking.status)) {
+      return res.status(400).json({ error: `Booking is already ${booking.status}` });
+    }
+
+    booking.status = 'cancelled';
+    booking.cancelledAt = new Date();
+    booking.cancelledBy = 'user';
+    booking.cancellationReason = reason || 'Cancelled by user';
+    await booking.save();
+
+    console.log(`❌ Booking cancelled by user: ${bookingId}`);
+    res.json({ success: true, message: 'Booking cancelled successfully', booking });
+  } catch (error) {
+    console.error('Error cancelling booking:', error);
+    res.status(500).json({ error: 'Failed to cancel booking' });
+  }
+});
+
+// Get merchant's bookings
+app.get('/api/merchant/bookings', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can access this' });
+    }
+
+    const { status, date, page = 1, limit = 50 } = req.query;
+    const numericPage = parseInt(page, 10);
+    const numericLimit = parseInt(limit, 10);
+
+    let filter = { merchantId: req.user.merchantId };
+    
+    if (status) {
+      filter.status = status;
+    }
+    
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+      filter.bookingDate = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+    const bookings = await Booking.find(filter)
+      .sort({ bookingDate: 1, timeSlot: 1 })
+      .skip((numericPage - 1) * numericLimit)
+      .limit(numericLimit)
+      .lean();
+
+    const total = await Booking.countDocuments(filter);
+
+    // Get stats
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const stats = {
+      todayBookings: await Booking.countDocuments({
+        merchantId: req.user.merchantId,
+        bookingDate: { $gte: today, $lt: tomorrow },
+        status: { $in: ['pending', 'confirmed'] }
+      }),
+      pendingCount: await Booking.countDocuments({
+        merchantId: req.user.merchantId,
+        status: 'pending'
+      }),
+      totalCompleted: await Booking.countDocuments({
+        merchantId: req.user.merchantId,
+        status: 'completed'
+      })
+    };
+
+    res.json({
+      bookings,
+      stats,
+      pagination: {
+        total,
+        page: numericPage,
+        pages: Math.ceil(total / numericLimit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching merchant bookings:', error);
+    res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+});
+
+// Update booking status (merchant)
+app.put('/api/merchant/bookings/:bookingId', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can update bookings' });
+    }
+
+    const { bookingId } = req.params;
+    const { status, merchantNote } = req.body;
+
+    const booking = await Booking.findOne({ bookingId, merchantId: req.user.merchantId });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const validTransitions = {
+      'pending': ['confirmed', 'cancelled'],
+      'confirmed': ['completed', 'cancelled', 'no-show'],
+      'completed': [],
+      'cancelled': [],
+      'no-show': []
+    };
+
+    if (status && !validTransitions[booking.status].includes(status)) {
+      return res.status(400).json({ 
+        error: `Cannot change status from ${booking.status} to ${status}` 
+      });
+    }
+
+    if (status) {
+      booking.status = status;
+      if (status === 'confirmed') booking.confirmedAt = new Date();
+      if (status === 'completed') booking.completedAt = new Date();
+      if (status === 'cancelled') {
+        booking.cancelledAt = new Date();
+        booking.cancelledBy = 'merchant';
+      }
+    }
+
+    if (merchantNote !== undefined) {
+      booking.merchantNote = merchantNote;
+    }
+
+    await booking.save();
+
+    console.log(`📝 Booking ${bookingId} updated by merchant: ${status || 'note added'}`);
+    res.json({ success: true, booking });
+  } catch (error) {
+    console.error('Error updating booking:', error);
+    res.status(500).json({ error: 'Failed to update booking' });
+  }
+});
+
+// Get available time slots for a merchant on a specific date
+app.get('/api/merchants/:merchantId/slots', async (req, res) => {
+  try {
+    const { merchantId } = req.params;
+    const { date } = req.query;
+
+    if (!date) {
+      return res.status(400).json({ error: 'Date is required' });
+    }
+
+    const merchant = await MerchantInfo.findOne({ merchantId, status: 'approved' });
+    if (!merchant) {
+      return res.status(404).json({ error: 'Merchant not found' });
+    }
+
+    const workingHours = merchant.workingHours || {};
+    const openingTime = workingHours.openingTime || '09:00';
+    const closingTime = workingHours.closingTime || '18:00';
+    const slotDuration = merchant.slotDuration || 30;
+
+    // Generate all possible slots
+    const [openHour, openMin] = openingTime.split(':').map(Number);
+    const [closeHour, closeMin] = closingTime.split(':').map(Number);
+    
+    const openMinutes = openHour * 60 + openMin;
+    const closeMinutes = closeHour * 60 + closeMin;
+    
+    const allSlots = [];
+    for (let mins = openMinutes; mins < closeMinutes; mins += slotDuration) {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      allSlots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
+
+    // Get booked slots for the date
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const bookedSlots = await Booking.find({
+      merchantId,
+      bookingDate: { $gte: startOfDay, $lte: endOfDay },
+      status: { $in: ['pending', 'confirmed'] }
+    }).select('timeSlot').lean();
+
+    const bookedTimes = bookedSlots.map(b => b.timeSlot);
+    const availableSlots = allSlots.filter(slot => !bookedTimes.includes(slot));
+
+    res.json({
+      merchant: {
+        merchantId: merchant.merchantId,
+        shopName: merchant.shopName,
+        slotDuration
+      },
+      date,
+      workingHours: { openingTime, closingTime },
+      allSlots,
+      bookedSlots: bookedTimes,
+      availableSlots
+    });
+  } catch (error) {
+    console.error('Error fetching slots:', error);
+    res.status(500).json({ error: 'Failed to fetch available slots' });
   }
 });
 

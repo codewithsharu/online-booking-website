@@ -1,32 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
 function Search() {
-  const [searchType, setSearchType] = useState('pincode'); // 'pincode' or 'merchantId'
-  const [searchValue, setSearchValue] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchType, setSearchType] = useState('pincode');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
+  const [selectedMerchant, setSelectedMerchant] = useState(null);
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedSlot, setSelectedSlot] = useState('');
+  const [selectedService, setSelectedService] = useState(null);
+  const [bookingNote, setBookingNote] = useState('');
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [message, setMessage] = useState({ text: '', type: '' });
+
+  // Get today's date in YYYY-MM-DD format
+  const today = new Date().toISOString().split('T')[0];
+  const maxDate = new Date();
+  maxDate.setDate(maxDate.getDate() + 14);
+  const maxDateStr = maxDate.toISOString().split('T')[0];
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    
-    if (!searchValue.trim()) {
-      setError('Please enter a search value');
-      return;
-    }
+    if (!searchQuery.trim()) return;
 
     setLoading(true);
-    setError('');
-    setResults([]);
     setSearched(true);
+    setResults([]);
+    setMessage({ text: '', type: '' });
 
     try {
       const query = new URLSearchParams({
         type: searchType,
-        value: searchValue.trim()
+        value: searchQuery.trim()
       }).toString();
 
       const res = await fetch(`${API_URL}/merchants/search-advanced?${query}`);
@@ -34,299 +44,442 @@ function Search() {
 
       if (res.ok) {
         setResults(data.merchants || []);
-        if (data.merchants.length === 0) {
-          setError('No merchants found');
-        }
       } else {
-        setError(data.error || 'Search failed');
+        setMessage({ text: data.error || 'Search failed', type: 'error' });
       }
     } catch (err) {
       console.error('Search error:', err);
-      setError('Error performing search');
+      setMessage({ text: 'Unable to connect. Please try again.', type: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
-  const containerStyle = {
-    maxWidth: '900px',
-    margin: '0 auto',
-    padding: '30px 20px',
-    fontFamily: 'Arial, sans-serif'
+  const openBookingModal = (merchant) => {
+    setSelectedMerchant(merchant);
+    setSelectedDate('');
+    setSelectedSlot('');
+    setSelectedService(null);
+    setAvailableSlots([]);
+    setBookingNote('');
   };
 
-  const headerStyle = {
-    textAlign: 'center',
-    marginBottom: '30px'
+  const closeBookingModal = () => {
+    setSelectedMerchant(null);
+    setSelectedDate('');
+    setSelectedSlot('');
+    setSelectedService(null);
+    setAvailableSlots([]);
+    setBookingNote('');
   };
 
-  const titleStyle = {
-    fontSize: '32px',
-    color: '#333',
-    margin: '0 0 10px 0'
+  const fetchSlots = async (date) => {
+    if (!selectedMerchant || !date) return;
+
+    setSlotsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/merchants/${selectedMerchant.merchantId}/slots?date=${date}`);
+      const data = await res.json();
+
+      if (res.ok) {
+        setAvailableSlots(data.availableSlots || []);
+      } else {
+        setAvailableSlots([]);
+      }
+    } catch (err) {
+      console.error('Error fetching slots:', err);
+      setAvailableSlots([]);
+    } finally {
+      setSlotsLoading(false);
+    }
   };
 
-  const subtitleStyle = {
-    fontSize: '14px',
-    color: '#666',
-    margin: 0
+  useEffect(() => {
+    if (selectedDate) {
+      fetchSlots(selectedDate);
+    }
+  }, [selectedDate, selectedMerchant]);
+
+  const handleBooking = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setMessage({ text: 'Please login to book an appointment', type: 'error' });
+      return;
+    }
+
+    if (!selectedService || !selectedDate || !selectedSlot) {
+      setMessage({ text: 'Please select service, date and time slot', type: 'error' });
+      return;
+    }
+
+    setBookingLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/bookings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          merchantId: selectedMerchant.merchantId,
+          service: selectedService,
+          bookingDate: selectedDate,
+          timeSlot: selectedSlot,
+          userNote: bookingNote || null
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setMessage({ text: 'Booking confirmed! Check your bookings page.', type: 'success' });
+        closeBookingModal();
+      } else {
+        setMessage({ text: data.error || 'Booking failed', type: 'error' });
+      }
+    } catch (err) {
+      console.error('Booking error:', err);
+      setMessage({ text: 'Unable to complete booking. Please try again.', type: 'error' });
+    } finally {
+      setBookingLoading(false);
+    }
   };
 
-  const formStyle = {
-    backgroundColor: '#f8f9fa',
-    padding: '25px',
-    borderRadius: '8px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-    marginBottom: '30px'
-  };
-
-  const formGroupStyle = {
-    marginBottom: '15px'
-  };
-
-  const labelStyle = {
-    display: 'block',
-    marginBottom: '8px',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    color: '#333'
-  };
-
-  const selectStyle = {
-    width: '100%',
-    padding: '10px',
-    borderRadius: '4px',
-    border: '1px solid #ddd',
-    fontSize: '14px',
-    marginBottom: '15px',
-    boxSizing: 'border-box'
-  };
-
-  const inputContainerStyle = {
-    display: 'flex',
-    gap: '10px',
-    marginBottom: '15px'
-  };
-
-  const inputStyle = {
-    flex: 1,
-    padding: '10px',
-    borderRadius: '4px',
-    border: '1px solid #ddd',
-    fontSize: '14px',
-    boxSizing: 'border-box'
-  };
-
-  const buttonStyle = {
-    padding: '10px 30px',
-    backgroundColor: '#007bff',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    transition: 'background-color 0.3s'
-  };
-
-  const buttonHoverStyle = {
-    ...buttonStyle,
-    backgroundColor: '#0056b3'
-  };
-
-  const [buttonHover, setButtonHover] = useState(false);
-
-  const errorStyle = {
-    backgroundColor: '#f8d7da',
-    color: '#721c24',
-    padding: '12px',
-    borderRadius: '4px',
-    marginBottom: '20px',
-    border: '1px solid #f5c6cb'
-  };
-
-  const loadingStyle = {
-    textAlign: 'center',
-    color: '#666',
-    fontSize: '16px',
-    padding: '20px'
-  };
-
-  const resultsContainerStyle = {
-    marginTop: '30px'
-  };
-
-  const resultsHeaderStyle = {
-    fontSize: '18px',
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: '15px',
-    paddingBottom: '10px',
-    borderBottom: '2px solid #007bff'
-  };
-
-  const merchantCardStyle = {
-    backgroundColor: '#fff',
-    border: '1px solid #ddd',
-    borderRadius: '6px',
-    padding: '20px',
-    marginBottom: '15px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    transition: 'box-shadow 0.3s'
-  };
-
-  const merchantCardHoverStyle = {
-    ...merchantCardStyle,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-  };
-
-  const merchantNameStyle = {
-    fontSize: '20px',
-    fontWeight: 'bold',
-    color: '#007bff',
-    margin: '0 0 10px 0'
-  };
-
-  const merchantDetailStyle = {
-    fontSize: '14px',
-    color: '#666',
-    margin: '5px 0',
-    lineHeight: '1.6'
-  };
-
-  const detailLabelStyle = {
-    fontWeight: 'bold',
-    color: '#333'
-  };
-
-  const noResultsStyle = {
-    textAlign: 'center',
-    color: '#999',
-    padding: '40px 20px',
-    fontSize: '16px'
+  const formatTime = (time) => {
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
   };
 
   return (
-    <div style={containerStyle}>
-      <div style={headerStyle}>
-        <h1 style={titleStyle}>Search Merchants</h1>
-        <p style={subtitleStyle}>Find merchants by Pincode or Merchant ID</p>
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      {/* Hero Section */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+        <div className="max-w-4xl mx-auto px-4 py-12 text-center">
+          <h1 className="text-3xl md:text-4xl font-bold mb-3">
+            Find & Book Services
+          </h1>
+          <p className="text-blue-100 text-lg mb-8">
+            Discover local businesses and book appointments instantly
+          </p>
+
+          {/* Search Form */}
+          <form onSubmit={handleSearch} className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-2xl shadow-xl p-2 flex flex-col md:flex-row gap-2">
+              <select
+                value={searchType}
+                onChange={(e) => setSearchType(e.target.value)}
+                className="px-4 py-3 rounded-xl text-gray-700 bg-gray-50 border-0 focus:ring-2 focus:ring-blue-400 outline-none md:w-40"
+              >
+                <option value="pincode">Pincode</option>
+                <option value="merchantId">Merchant ID</option>
+              </select>
+              
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={searchType === 'pincode' ? 'Enter pincode (e.g., 560001)' : 'Enter merchant ID'}
+                className="flex-1 px-4 py-3 rounded-xl text-gray-700 bg-gray-50 border-0 focus:ring-2 focus:ring-blue-400 outline-none"
+              />
+              
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {loading ? (
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                )}
+                Search
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
 
-      <form onSubmit={handleSearch} style={formStyle}>
-        <div style={formGroupStyle}>
-          <label style={labelStyle}>Search By:</label>
-          <select 
-            value={searchType} 
-            onChange={(e) => setSearchType(e.target.value)}
-            style={selectStyle}
-          >
-            <option value="pincode">Pincode</option>
-            <option value="merchantId">Merchant ID</option>
-          </select>
-        </div>
-
-        <div style={formGroupStyle}>
-          <label style={labelStyle}>
-            {searchType === 'pincode' ? 'Enter Pincode' : 'Enter Merchant ID'}
-          </label>
-          <div style={inputContainerStyle}>
-            <input
-              type="text"
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder={searchType === 'pincode' ? 'e.g., 532201' : 'e.g., MER89927596'}
-              style={inputStyle}
-            />
-            <button 
-              type="submit" 
-              style={buttonHover ? buttonHoverStyle : buttonStyle}
-              onMouseEnter={() => setButtonHover(true)}
-              onMouseLeave={() => setButtonHover(false)}
-              disabled={loading}
-            >
-              {loading ? 'Searching...' : 'Search'}
-            </button>
+      {/* Message Banner */}
+      {message.text && (
+        <div className="max-w-4xl mx-auto px-4 mt-4">
+          <div className={`p-4 rounded-xl ${
+            message.type === 'success' 
+              ? 'bg-green-50 text-green-700 border border-green-200' 
+              : 'bg-red-50 text-red-700 border border-red-200'
+          }`}>
+            {message.text}
           </div>
-        </div>
-      </form>
-
-      {error && <div style={errorStyle}>{error}</div>}
-
-      {loading && <div style={loadingStyle}>🔍 Searching...</div>}
-
-      {searched && results.length > 0 && (
-        <div style={resultsContainerStyle}>
-          <div style={resultsHeaderStyle}>
-            Found {results.length} Merchant{results.length !== 1 ? 's' : ''}
-          </div>
-          
-          {results.map((merchant) => (
-            <div 
-              key={merchant._id} 
-              style={merchantCardStyle}
-              onMouseEnter={(e) => e.currentTarget.style.boxShadow = merchantCardHoverStyle.boxShadow}
-              onMouseLeave={(e) => e.currentTarget.style.boxShadow = merchantCardStyle.boxShadow}
-            >
-              <h3 style={merchantNameStyle}>{merchant.shopName}</h3>
-              
-              <p style={merchantDetailStyle}>
-                <span style={detailLabelStyle}>Owner:</span> {merchant.ownerName}
-              </p>
-              
-              <p style={merchantDetailStyle}>
-                <span style={detailLabelStyle}>Merchant ID:</span> {merchant.merchantId}
-              </p>
-              
-              <p style={merchantDetailStyle}>
-                <span style={detailLabelStyle}>Phone:</span> {merchant.phone}
-              </p>
-              
-              <p style={merchantDetailStyle}>
-                <span style={detailLabelStyle}>Pincode:</span> {merchant.pincode}
-              </p>
-              
-              <p style={merchantDetailStyle}>
-                <span style={detailLabelStyle}>Address:</span> {merchant.shopAddress}
-              </p>
-
-              {merchant.shopCategory && (
-                <p style={merchantDetailStyle}>
-                  <span style={detailLabelStyle}>Category:</span> {merchant.shopCategory}
-                </p>
-              )}
-
-              {merchant.shopDescription && (
-                <p style={merchantDetailStyle}>
-                  <span style={detailLabelStyle}>Description:</span> {merchant.shopDescription}
-                </p>
-              )}
-
-              {merchant.contact?.phone && (
-                <p style={merchantDetailStyle}>
-                  <span style={detailLabelStyle}>Contact Phone:</span> {merchant.contact.phone}
-                </p>
-              )}
-
-              {merchant.contact?.email && (
-                <p style={merchantDetailStyle}>
-                  <span style={detailLabelStyle}>Email:</span> {merchant.contact.email}
-                </p>
-              )}
-
-              {merchant.socialMedia?.website && (
-                <p style={merchantDetailStyle}>
-                  <span style={detailLabelStyle}>Website:</span> {merchant.socialMedia.website}
-                </p>
-              )}
-            </div>
-          ))}
         </div>
       )}
 
-      {searched && results.length === 0 && !loading && error && (
-        <div style={noResultsStyle}>
-          No merchants found. Try a different search.
+      {/* Results Section */}
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {loading && (
+          <div className="text-center py-16">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+            <p className="text-gray-500 mt-4">Searching...</p>
+          </div>
+        )}
+
+        {!loading && searched && results.length === 0 && (
+          <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-100">
+            <div className="w-20 h-20 mx-auto bg-blue-50 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-10 h-10 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">No services found</h3>
+            <p className="text-gray-500">Try searching with a different pincode or merchant ID</p>
+          </div>
+        )}
+
+        {!loading && results.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-800">
+                {results.length} {results.length === 1 ? 'Service' : 'Services'} Found
+              </h2>
+            </div>
+
+            <div className="grid gap-4">
+              {results.map((merchant) => (
+                <div
+                  key={merchant.merchantId}
+                  className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow duration-200"
+                >
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-start gap-3">
+                        <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
+                          {merchant.shopName?.charAt(0)?.toUpperCase() || 'M'}
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-800 mb-1">
+                            {merchant.shopName}
+                          </h3>
+                          {merchant.shopCategory && (
+                            <span className="inline-block px-3 py-1 bg-blue-50 text-blue-600 text-sm font-medium rounded-full">
+                              {merchant.shopCategory}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 space-y-2 text-gray-600">
+                        <div className="flex items-start gap-2">
+                          <svg className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <span className="text-sm">{merchant.shopAddress}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                          </svg>
+                          <span className="text-sm">{merchant.phone}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                          </svg>
+                          <span className="text-sm font-mono text-blue-600">{merchant.merchantId}</span>
+                        </div>
+                      </div>
+
+                      {merchant.shopDescription && (
+                        <p className="mt-3 text-sm text-gray-500">{merchant.shopDescription}</p>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => openBookingModal(merchant)}
+                      className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Book Now
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!searched && !loading && (
+          <div className="text-center py-16">
+            <div className="w-24 h-24 mx-auto bg-blue-50 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">Search for services</h3>
+            <p className="text-gray-500 max-w-md mx-auto">
+              Enter a pincode to find nearby services or search by merchant ID if you have one
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Booking Modal */}
+      {selectedMerchant && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">Book Appointment</h3>
+                <p className="text-sm text-gray-500">{selectedMerchant.shopName}</p>
+              </div>
+              <button
+                onClick={closeBookingModal}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              {/* Service Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Service</label>
+                {selectedMerchant.services && selectedMerchant.services.length > 0 ? (
+                  <div className="space-y-2">
+                    {selectedMerchant.services.map((service, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSelectedService(typeof service === 'string' ? { name: service } : service)}
+                        className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
+                          selectedService?.name === (service.name || service)
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-blue-300'
+                        }`}
+                      >
+                        <div className="font-medium text-gray-800">{service.name || service}</div>
+                        {service.price && (
+                          <div className="text-sm text-blue-600 mt-1">₹{service.price}</div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setSelectedService({ name: 'General Appointment' })}
+                      className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
+                        selectedService?.name === 'General Appointment'
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-blue-300'
+                      }`}
+                    >
+                      <div className="font-medium text-gray-800">General Appointment</div>
+                      <div className="text-sm text-gray-500 mt-1">Standard consultation</div>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Date Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => {
+                    setSelectedDate(e.target.value);
+                    setSelectedSlot('');
+                  }}
+                  min={today}
+                  max={maxDateStr}
+                  className="w-full p-4 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 outline-none transition-colors"
+                />
+              </div>
+
+              {/* Time Slot Selection */}
+              {selectedDate && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Time</label>
+                  {slotsLoading ? (
+                    <div className="text-center py-4">
+                      <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent"></div>
+                      <p className="text-sm text-gray-500 mt-2">Loading available slots...</p>
+                    </div>
+                  ) : availableSlots.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {availableSlots.map((slot) => (
+                        <button
+                          key={slot}
+                          onClick={() => setSelectedSlot(slot)}
+                          className={`p-3 rounded-xl text-sm font-medium transition-all ${
+                            selectedSlot === slot
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-blue-600'
+                          }`}
+                        >
+                          {formatTime(slot)}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 bg-gray-50 rounded-xl">
+                      <p className="text-sm text-gray-500">No slots available for this date</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Note */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Note (Optional)</label>
+                <textarea
+                  value={bookingNote}
+                  onChange={(e) => setBookingNote(e.target.value)}
+                  placeholder="Any special requests..."
+                  rows={3}
+                  className="w-full p-4 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 outline-none transition-colors resize-none"
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4">
+              <button
+                onClick={handleBooking}
+                disabled={!selectedService || !selectedDate || !selectedSlot || bookingLoading}
+                className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                {bookingLoading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Booking...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Confirm Booking
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
