@@ -25,7 +25,7 @@ function Search() {
 
   // Booking modal state
   const [selectedMerchant, setSelectedMerchant] = useState(null);
-  const [availableSlots, setAvailableSlots] = useState([]);
+  const [, setAvailableSlots] = useState([]);
   const [allSlots, setAllSlots] = useState([]);
   const [bookedSlots, setBookedSlots] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');

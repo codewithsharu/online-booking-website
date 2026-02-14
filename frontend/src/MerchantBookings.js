@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
@@ -16,11 +16,7 @@ function MerchantBookings() {
 
   const today = new Date().toISOString().split('T')[0];
 
-  useEffect(() => {
-    fetchBookings();
-  }, [selectedDate, statusFilter]);
-
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) { window.location.href = '/login'; return; }
 
@@ -48,7 +44,11 @@ function MerchantBookings() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDate, statusFilter]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
 
   const updateBookingStatus = async (bookingId, newStatus) => {
     setUpdatingId(bookingId);
