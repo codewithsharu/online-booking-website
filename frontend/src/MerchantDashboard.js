@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import MerchantServices from './MerchantServices';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
@@ -445,8 +446,16 @@ function MerchantDashboard() {
                     <option value="">Select Category</option>
                     <option value="Barber">Barber</option>
                     <option value="Salon">Salon</option>
+                    <option value="Hospital">Hospital</option>
+                    <option value="Gym">Gym</option>
                     <option value="Clinic">Clinic</option>
+                    <option value="Spa">Spa</option>
+                    <option value="Dental">Dental</option>
+                    <option value="Physiotherapy">Physiotherapy</option>
                     <option value="Repair">Repair</option>
+                    <option value="Tutor">Tutor</option>
+                    <option value="Photography">Photography</option>
+                    <option value="Consulting">Consulting</option>
                     <option value="Other">Other</option>
                   </select>
                 </div>
@@ -737,6 +746,9 @@ function MerchantDashboard() {
               </div>
             </div>
           )}
+
+          {/* Service Publishing Section */}
+          <MerchantServices />
         </div>
       )}
     </div>

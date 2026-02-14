@@ -168,14 +168,14 @@ function MerchantRegister() {
   const verifyOTP = async () => {
     const trimmedOTP = otp.trim();
     
-    if (!trimmedOTP || trimmedOTP.length !== 6) {
-      setMessage(`Enter valid 6-digit OTP (current: ${trimmedOTP.length} digits)`);
+    if (!trimmedOTP || trimmedOTP.length !== 4) {
+      setMessage(`Enter valid 4-digit OTP (current: ${trimmedOTP.length} digits)`);
       return;
     }
 
     // Double-check OTP contains only digits
-    if (!/^\d{6}$/.test(trimmedOTP)) {
-      setMessage('OTP must contain only 6 digits');
+    if (!/^\d{4}$/.test(trimmedOTP)) {
+      setMessage('OTP must contain only 4 digits');
       return;
     }
 
@@ -306,15 +306,15 @@ function MerchantRegister() {
     return (
       <div style={{ padding: '20px', maxWidth: '500px', margin: '50px auto' }}>
         <h1>Verify OTP</h1>
-        <p>Enter 6-digit code sent to +91{phone}</p>
+        <p>Enter 4-digit code sent to +91{phone}</p>
 
         <input
           type="tel"
           inputMode="numeric"
           pattern="[0-9]*"
-          placeholder="000000"
+          placeholder="0000"
           value={otp}
-          onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
           onKeyPress={(e) => e.key === 'Enter' && verifyOTP()}
           style={{
             width: '100%',
@@ -333,7 +333,7 @@ function MerchantRegister() {
 
         <button
           onClick={verifyOTP}
-          disabled={loading || otp.length !== 6}
+          disabled={loading || otp.length !== 4}
           style={{
             width: '100%',
             padding: '12px',
@@ -342,9 +342,9 @@ function MerchantRegister() {
             color: 'white',
             border: 'none',
             borderRadius: '5px',
-            cursor: loading || otp.length !== 6 ? 'not-allowed' : 'pointer',
+            cursor: loading || otp.length !== 4 ? 'not-allowed' : 'pointer',
             fontSize: '16px',
-            opacity: loading || otp.length !== 6 ? 0.6 : 1
+            opacity: loading || otp.length !== 4 ? 0.6 : 1
           }}
         >
           {loading ? 'Verifying...' : 'Verify OTP'}

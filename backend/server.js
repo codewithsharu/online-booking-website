@@ -12,6 +12,8 @@ const User = require('./models/User');
 const MerchantInfo = require('./models/MerchantInfo');
 const OTPService = require('./models/OTPService');
 const Booking = require('./models/Booking');
+const Service = require('./models/Service');
+const { CATEGORIES } = require('./models/Service');
 
 const app = express();
 app.use(express.json());
@@ -1283,7 +1285,8 @@ app.put('/api/merchant/bookings/:bookingId', verifyToken, async (req, res) => {
 
     const validTransitions = {
       'pending': ['confirmed', 'cancelled'],
-      'confirmed': ['completed', 'cancelled', 'no-show'],
+      'confirmed': ['ongoing', 'cancelled', 'no-show'],
+      'ongoing': ['completed'],
       'completed': [],
       'cancelled': [],
       'no-show': []
@@ -1297,7 +1300,22 @@ app.put('/api/merchant/bookings/:bookingId', verifyToken, async (req, res) => {
 
     if (status) {
       booking.status = status;
-      if (status === 'confirmed') booking.confirmedAt = new Date();
+      if (status === 'confirmed') {
+        booking.confirmedAt = new Date();
+        // Generate 4-digit OTP for verification
+        const otp = Math.floor(1000 + Math.random() * 9000).toString();
+        booking.verificationOTP = otp;
+        // Generate QR data string
+        booking.verificationQR = JSON.stringify({
+          bookingId: booking.bookingId,
+          otp: otp,
+          shopName: booking.shopName,
+          service: booking.service?.name,
+          date: booking.bookingDate,
+          time: booking.timeSlot
+        });
+        console.log(`🔐 Verification OTP for booking ${bookingId}: ${otp}`);
+      }
       if (status === 'completed') booking.completedAt = new Date();
       if (status === 'cancelled') {
         booking.cancelledAt = new Date();
@@ -1316,6 +1334,46 @@ app.put('/api/merchant/bookings/:bookingId', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Error updating booking:', error);
     res.status(500).json({ error: 'Failed to update booking' });
+  }
+});
+
+// Merchant verifies OTP to start service (confirmed → ongoing)
+app.post('/api/merchant/bookings/:bookingId/verify-otp', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can verify OTP' });
+    }
+
+    const { bookingId } = req.params;
+    const { otp } = req.body;
+
+    if (!otp || otp.length !== 4) {
+      return res.status(400).json({ error: 'Please enter a valid 4-digit OTP' });
+    }
+
+    const booking = await Booking.findOne({ bookingId, merchantId: req.user.merchantId });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    if (booking.status !== 'confirmed') {
+      return res.status(400).json({ error: `Booking must be confirmed to verify. Current status: ${booking.status}` });
+    }
+
+    if (booking.verificationOTP !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP. Please check and try again.' });
+    }
+
+    booking.status = 'ongoing';
+    booking.otpVerifiedAt = new Date();
+    await booking.save();
+
+    console.log(`✅ OTP verified for booking ${bookingId} - Service started`);
+    res.json({ success: true, message: 'OTP verified! Service started.', booking });
+  } catch (error) {
+    console.error('Error verifying OTP:', error);
+    res.status(500).json({ error: 'Failed to verify OTP' });
   }
 });
 
@@ -1383,6 +1441,245 @@ app.get('/api/merchants/:merchantId/slots', async (req, res) => {
   } catch (error) {
     console.error('Error fetching slots:', error);
     res.status(500).json({ error: 'Failed to fetch available slots' });
+  }
+});
+
+// ==================== SERVICE PUBLISHING ENDPOINTS ====================
+
+// Get all categories
+app.get('/api/services/categories', (req, res) => {
+  res.json({ categories: CATEGORIES });
+});
+
+// Publish a new service (merchant)
+app.post('/api/merchant/services', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can publish services' });
+    }
+
+    const merchant = await MerchantInfo.findOne({ phone: req.user.phone, status: 'approved' });
+    if (!merchant) {
+      return res.status(403).json({ error: 'Merchant must be approved to publish services' });
+    }
+
+    const {
+      serviceName, description, category, price,
+      duration, availableDays, timeSlots, slotDuration,
+      maxBookingsPerSlot
+    } = req.body;
+
+    if (!serviceName || !category) {
+      return res.status(400).json({ error: 'Service name and category are required' });
+    }
+
+    if (!CATEGORIES.includes(category)) {
+      return res.status(400).json({ error: 'Invalid category', validCategories: CATEGORIES });
+    }
+
+    const service = await Service.create({
+      merchantId: merchant.merchantId,
+      merchantPhone: merchant.phone,
+      shopName: merchant.shopName,
+      ownerName: merchant.ownerName,
+      serviceName: serviceName.trim(),
+      description: description ? description.trim() : '',
+      category,
+      price: price || 0,
+      duration: duration || 30,
+      pincode: merchant.pincode,
+      area: merchant.location?.city || '',
+      shopAddress: merchant.shopAddress,
+      city: merchant.location?.city || '',
+      state: merchant.location?.state || '',
+      availableDays: availableDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+      timeSlots: timeSlots || [],
+      slotDuration: slotDuration || merchant.slotDuration || 30,
+      maxBookingsPerSlot: maxBookingsPerSlot || 1,
+      isPublished: true,
+      publishedAt: new Date()
+    });
+
+    console.log(`📢 Service published: ${serviceName} by ${merchant.merchantId}`);
+    res.json({ success: true, message: 'Service published successfully', service });
+  } catch (error) {
+    console.error('Error publishing service:', error);
+    res.status(500).json({ error: 'Failed to publish service' });
+  }
+});
+
+// Get merchant's own services
+app.get('/api/merchant/services', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can access this' });
+    }
+
+    const merchant = await MerchantInfo.findOne({ phone: req.user.phone });
+    if (!merchant || !merchant.merchantId) {
+      return res.json({ services: [] });
+    }
+
+    const services = await Service.find({ merchantId: merchant.merchantId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json({ services });
+  } catch (error) {
+    console.error('Error fetching merchant services:', error);
+    res.status(500).json({ error: 'Failed to fetch services' });
+  }
+});
+
+// Update a service (merchant)
+app.put('/api/merchant/services/:serviceId', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can update services' });
+    }
+
+    const merchant = await MerchantInfo.findOne({ phone: req.user.phone });
+    const service = await Service.findOne({ _id: req.params.serviceId, merchantId: merchant?.merchantId });
+
+    if (!service) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+
+    const {
+      serviceName, description, category, price,
+      duration, availableDays, timeSlots, slotDuration,
+      maxBookingsPerSlot
+    } = req.body;
+
+    if (serviceName) service.serviceName = serviceName.trim();
+    if (description !== undefined) service.description = description.trim();
+    if (category && CATEGORIES.includes(category)) service.category = category;
+    if (price !== undefined) service.price = price;
+    if (duration) service.duration = duration;
+    if (availableDays) service.availableDays = availableDays;
+    if (timeSlots) service.timeSlots = timeSlots;
+    if (slotDuration) service.slotDuration = slotDuration;
+    if (maxBookingsPerSlot) service.maxBookingsPerSlot = maxBookingsPerSlot;
+
+    await service.save();
+
+    console.log(`✏️ Service updated: ${service.serviceName} by ${merchant.merchantId}`);
+    res.json({ success: true, message: 'Service updated successfully', service });
+  } catch (error) {
+    console.error('Error updating service:', error);
+    res.status(500).json({ error: 'Failed to update service' });
+  }
+});
+
+// Toggle publish/stop a service (merchant)
+app.patch('/api/merchant/services/:serviceId/toggle', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can manage services' });
+    }
+
+    const merchant = await MerchantInfo.findOne({ phone: req.user.phone });
+    const service = await Service.findOne({ _id: req.params.serviceId, merchantId: merchant?.merchantId });
+
+    if (!service) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+
+    service.isPublished = !service.isPublished;
+    if (!service.isPublished) {
+      service.stoppedAt = new Date();
+    } else {
+      service.stoppedAt = null;
+      service.publishedAt = new Date();
+    }
+
+    await service.save();
+
+    const action = service.isPublished ? 'Published' : 'Stopped';
+    console.log(`${service.isPublished ? '▶️' : '⏸️'} Service ${action}: ${service.serviceName}`);
+    res.json({ 
+      success: true, 
+      message: `Service ${action.toLowerCase()} successfully`, 
+      service 
+    });
+  } catch (error) {
+    console.error('Error toggling service:', error);
+    res.status(500).json({ error: 'Failed to toggle service' });
+  }
+});
+
+// Delete a service (merchant)
+app.delete('/api/merchant/services/:serviceId', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can delete services' });
+    }
+
+    const merchant = await MerchantInfo.findOne({ phone: req.user.phone });
+    const service = await Service.findOneAndDelete({ _id: req.params.serviceId, merchantId: merchant?.merchantId });
+
+    if (!service) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+
+    console.log(`🗑️ Service deleted: ${service.serviceName} by ${merchant.merchantId}`);
+    res.json({ success: true, message: 'Service deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting service:', error);
+    res.status(500).json({ error: 'Failed to delete service' });
+  }
+});
+
+// Search services by pincode and/or category (public)
+app.get('/api/services/search', async (req, res) => {
+  try {
+    const { pincode, category, query, page = 1, limit = 50 } = req.query;
+    const numericPage = parseInt(page, 10);
+    const numericLimit = parseInt(limit, 10);
+
+    let filter = { isPublished: true, isActive: true };
+
+    if (pincode) filter.pincode = pincode.trim();
+    if (category && category !== 'All') filter.category = category;
+    if (query) {
+      filter.$or = [
+        { serviceName: new RegExp(query, 'i') },
+        { description: new RegExp(query, 'i') },
+        { shopName: new RegExp(query, 'i') }
+      ];
+    }
+
+    const services = await Service.find(filter)
+      .sort({ publishedAt: -1 })
+      .skip((numericPage - 1) * numericLimit)
+      .limit(numericLimit)
+      .lean();
+
+    const total = await Service.countDocuments(filter);
+
+    // Get category counts for the pincode
+    let categoryCounts = [];
+    if (pincode) {
+      categoryCounts = await Service.aggregate([
+        { $match: { pincode: pincode.trim(), isPublished: true, isActive: true } },
+        { $group: { _id: '$category', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]);
+    }
+
+    res.json({
+      services,
+      categories: CATEGORIES,
+      categoryCounts,
+      pagination: {
+        total,
+        page: numericPage,
+        pages: Math.ceil(total / numericLimit)
+      }
+    });
+  } catch (error) {
+    console.error('Error searching services:', error);
+    res.status(500).json({ error: 'Failed to search services' });
   }
 });
 

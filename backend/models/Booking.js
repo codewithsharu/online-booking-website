@@ -84,9 +84,24 @@ const bookingSchema = new mongoose.Schema({
   // Status
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'completed', 'cancelled', 'no-show'],
+    enum: ['pending', 'confirmed', 'ongoing', 'completed', 'cancelled', 'no-show'],
     default: 'pending',
     index: true
+  },
+
+  // Verification (BookMyShow style)
+  verificationOTP: {
+    type: String,
+    default: null
+  },
+  verificationQR: {
+    type: String,
+    default: null,
+    comment: 'QR code data string for scanning'
+  },
+  otpVerifiedAt: {
+    type: Date,
+    default: null
   },
   
   // Cancellation
