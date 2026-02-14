@@ -6,6 +6,12 @@ function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Hide if not logged in
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return null;
+  }
+
   // Only hide on admin pages
   const hideOnPages = ['/admin-login', '/admin', '/admin/approvals'];
   if (hideOnPages.includes(location.pathname)) {
