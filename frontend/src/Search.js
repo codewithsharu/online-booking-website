@@ -289,7 +289,7 @@ function Search() {
         </div>
       </div>
 
-      {/* Category Filter Bar */}
+      {/* Category Filter Bar - Horizontal Slider */}
       <div className="max-w-4xl mx-auto px-4 mt-6">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
           <div className="flex items-center justify-between mb-3">
@@ -298,11 +298,12 @@ function Search() {
               <span className="text-xs text-gray-500">{totalServiceCount} services found</span>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
+            <style>{`.category-slider::-webkit-scrollbar { display: none; }`}</style>
             {/* All button */}
             <button
               onClick={() => setSelectedCategory('All')}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border-2 ${
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border-2 whitespace-nowrap flex-shrink-0 ${
                 selectedCategory === 'All'
                   ? 'bg-blue-600 text-white border-blue-600'
                   : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
@@ -317,7 +318,7 @@ function Search() {
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border-2 ${
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border-2 whitespace-nowrap flex-shrink-0 ${
                     selectedCategory === cat
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
