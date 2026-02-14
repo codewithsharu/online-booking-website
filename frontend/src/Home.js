@@ -221,7 +221,7 @@ function Home() {
 
   const logout = () => {
     localStorage.clear();
-    window.location.href = '/login';
+    window.location.href = '/';
   };
 
   if (!user) {

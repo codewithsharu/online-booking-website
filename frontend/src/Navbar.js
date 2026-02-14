@@ -86,7 +86,7 @@ function Navbar() {
     setDropdownOpen(false);
     localStorage.clear();
     setUser(null);
-    navigate('/login');
+    navigate('/');
   };
 
   return (

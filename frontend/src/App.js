@@ -144,6 +144,9 @@ function App() {
 
         {/* Root landing - show hero, do not auto-redirect to login */}
         <Route path="/" element={<Hero />} />
+
+        {/* Catch-all: redirect unknown routes to home */}
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       <BottomNav />
     </Router>
