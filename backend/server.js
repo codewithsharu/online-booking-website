@@ -1090,11 +1090,16 @@ app.delete('/api/admin/users/:phone', verifyToken, async (req, res) => {
 
 // ==================== BOOKING ENDPOINTS ====================
 
-// Generate booking ID
+// Generate booking ID — readable format: WS-YYMMDD-XXXX
 const generateBookingId = () => {
-  const timestamp = Date.now().toString(36).toUpperCase();
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `BK${timestamp}${random}`;
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I,O,0,1 to avoid confusion
+  let random = '';
+  for (let i = 0; i < 4; i++) random += chars[Math.floor(Math.random() * chars.length)];
+  return `WS-${yy}${mm}${dd}-${random}`;
 };
 
 // Create a new booking (user)
@@ -1272,7 +1277,7 @@ app.get('/api/merchant/bookings', verifyToken, async (req, res) => {
       return res.status(403).json({ error: 'Only merchants can access this' });
     }
 
-    const { status, date, page = 1, limit = 50 } = req.query;
+    const { status, date, search, page = 1, limit = 50 } = req.query;
     const numericPage = parseInt(page, 10);
     const numericLimit = parseInt(limit, 10);
 
@@ -1288,6 +1293,16 @@ app.get('/api/merchant/bookings', verifyToken, async (req, res) => {
       const endOfDay = new Date(date);
       endOfDay.setHours(23, 59, 59, 999);
       filter.bookingDate = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+    // Search by booking ID, customer name, or phone
+    if (search) {
+      const searchTerm = search.trim();
+      filter.$or = [
+        { bookingId: { $regex: searchTerm, $options: 'i' } },
+        { userName: { $regex: searchTerm, $options: 'i' } },
+        { userPhone: { $regex: searchTerm, $options: 'i' } }
+      ];
     }
 
     // Stats date range

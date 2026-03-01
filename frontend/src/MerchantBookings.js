@@ -13,7 +13,6 @@ function MerchantBookings() {
   const [verifyModal, setVerifyModal] = useState(null); // booking object for OTP verification
   const [otpInput, setOtpInput] = useState('');
   const [verifying, setVerifying] = useState(false);
-
   const today = new Date().toISOString().split('T')[0];
 
   const fetchBookings = useCallback(async () => {
@@ -160,6 +159,8 @@ function MerchantBookings() {
     setStatusFilter('');
   };
 
+
+
   // Count stats for ongoing
   const ongoingCount = bookings.filter(b => b.status === 'ongoing').length;
 
@@ -295,7 +296,7 @@ function MerchantBookings() {
             <div className="w-20 h-20 mx-auto bg-blue-50 rounded-full flex items-center justify-center mb-4 text-4xl">📋</div>
             <h3 className="text-xl font-semibold text-gray-800 mb-2">No bookings found</h3>
             <p className="text-gray-500">
-              {selectedDate || statusFilter 
+              {selectedDate || statusFilter
                 ? 'Try changing your filters' 
                 : 'Bookings will appear here when customers make appointments'}
             </p>
@@ -310,6 +311,20 @@ function MerchantBookings() {
                 }`}
               >
                 <div className="p-5">
+                  {/* Booking ID Badge */}
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold font-mono tracking-wide border border-blue-100">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                      </svg>
+                      {booking.bookingId}
+                    </span>
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border ${getStatusColor(booking.status)}`}>
+                      <span>{getStatusIcon(booking.status)}</span>
+                      {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                    </span>
+                  </div>
+
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     {/* Customer Info */}
                     <div className="flex items-center gap-4">
@@ -347,12 +362,8 @@ function MerchantBookings() {
                       )}
                     </div>
 
-                    {/* Status & Actions */}
+                    {/* Actions */}
                     <div className="flex items-center gap-3 flex-wrap">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border ${getStatusColor(booking.status)}`}>
-                        <span>{getStatusIcon(booking.status)}</span>
-                        {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                      </span>
 
                       {/* PENDING → Confirm / Decline */}
                       {booking.status === 'pending' && (
@@ -429,11 +440,8 @@ function MerchantBookings() {
                     </div>
                   )}
 
-                  {/* Booking ID & Note */}
+                  {/* Note */}
                   <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-sm">
-                    <span className="text-gray-400">
-                      ID: <span className="font-mono text-gray-600">{booking.bookingId}</span>
-                    </span>
                     {booking.userNote && (
                       <span className="text-gray-500 italic bg-gray-50 px-3 py-1 rounded-lg">
                         Note: "{booking.userNote}"

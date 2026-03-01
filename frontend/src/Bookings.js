@@ -154,21 +154,29 @@ function Bookings() {
         className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
       >
         <div className="p-5">
-          {/* Top: Shop info + Status */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 flex-1">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
-                {booking.shopName?.charAt(0)?.toUpperCase() || 'M'}
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-lg font-semibold text-gray-800 truncate">{booking.shopName}</h3>
-                <p className="text-sm text-gray-500">{booking.service?.name}</p>
-              </div>
-            </div>
+          {/* Booking ID Badge */}
+          <div className="flex items-center justify-between mb-3">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold font-mono tracking-wide border border-blue-100">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+              </svg>
+              {booking.bookingId}
+            </span>
             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${statusConfig.color} flex-shrink-0`}>
               <span>{statusConfig.icon}</span>
               {statusConfig.label}
             </span>
+          </div>
+
+          {/* Shop info */}
+          <div className="flex items-start gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
+              {booking.shopName?.charAt(0)?.toUpperCase() || 'M'}
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-lg font-semibold text-gray-800 truncate">{booking.shopName}</h3>
+              <p className="text-sm text-gray-500">{booking.service?.name}</p>
+            </div>
           </div>
 
           {/* Date, Time, Price row */}
@@ -265,11 +273,12 @@ function Bookings() {
             </div>
           )}
 
-          {/* Footer: Booking ID + Actions */}
+          {/* Footer: Actions */}
           <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-xs text-gray-400">
-              ID: <span className="font-mono text-gray-500">{booking.bookingId}</span>
-            </span>
+            {booking.userNote && (
+              <span className="text-xs text-gray-400 italic">"{booking.userNote}"</span>
+            )}
+            {!booking.userNote && <span></span>}
 
             <div className="flex items-center gap-2">
               {booking.userNote && (
