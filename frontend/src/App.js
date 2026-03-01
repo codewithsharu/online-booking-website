@@ -13,6 +13,7 @@ const MerchantRegister = lazy(() => import('./MerchantRegister'));
 const MerchantDashboard = lazy(() => import('./MerchantDashboard'));
 const MerchantBookings = lazy(() => import('./MerchantBookings'));
 const MerchantSearch = lazy(() => import('./MerchantSearch'));
+const MerchantCalendar = lazy(() => import('./MerchantCalendar'));
 const AdminApproval = lazy(() => import('./AdminApproval'));
 const Clear = lazy(() => import('./Clear'));
 const Search = lazy(() => import('./Search'));
@@ -119,6 +120,16 @@ function App() {
           element={
             <ProtectedRoute requiredRole="merchant">
               <MerchantSearch />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Merchant calendar */}
+        <Route 
+          path="/merchant-calendar" 
+          element={
+            <ProtectedRoute requiredRole="merchant">
+              <MerchantCalendar />
             </ProtectedRoute>
           }
         />

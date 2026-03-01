@@ -234,48 +234,61 @@ function MerchantBookings() {
         </div>
       )}
 
-      {/* Filters */}
+      {/* Status Filter Tabs */}
       <div className="max-w-6xl mx-auto px-4 mt-6">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-          <div className="flex flex-col md:flex-row gap-4 items-center">
-            <div className="flex-1 flex flex-col md:flex-row gap-4 w-full">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Date</label>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-0 outline-none"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-0 outline-none bg-white"
+          {/* Pill Tabs */}
+          <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide">
+            {[
+              { value: '', label: 'All', color: 'blue' },
+              { value: 'pending', label: 'Pending', color: 'yellow' },
+              { value: 'confirmed', label: 'Confirmed', color: 'blue' },
+              { value: 'ongoing', label: 'Ongoing', color: 'purple' },
+              { value: 'completed', label: 'Completed', color: 'green' },
+              { value: 'cancelled', label: 'Cancelled', color: 'red' },
+              { value: 'no-show', label: 'No Show', color: 'gray' },
+            ].map((tab) => {
+              const isActive = statusFilter === tab.value;
+              const colorMap = {
+                blue: isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'bg-blue-50 text-blue-700 hover:bg-blue-100',
+                yellow: isActive ? 'bg-yellow-500 text-white shadow-md shadow-yellow-200' : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100',
+                purple: isActive ? 'bg-purple-600 text-white shadow-md shadow-purple-200' : 'bg-purple-50 text-purple-700 hover:bg-purple-100',
+                green: isActive ? 'bg-green-600 text-white shadow-md shadow-green-200' : 'bg-green-50 text-green-700 hover:bg-green-100',
+                red: isActive ? 'bg-red-500 text-white shadow-md shadow-red-200' : 'bg-red-50 text-red-700 hover:bg-red-100',
+                gray: isActive ? 'bg-gray-600 text-white shadow-md shadow-gray-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+              };
+              return (
+                <button
+                  key={tab.value}
+                  onClick={() => setStatusFilter(tab.value)}
+                  className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${colorMap[tab.color]}`}
                 >
-                  <option value="">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="ongoing">Ongoing</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                  <option value="no-show">No Show</option>
-                </select>
-              </div>
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Date Filter + Actions */}
+          <div className="flex flex-col sm:flex-row gap-3 items-center border-t border-gray-100 pt-3">
+            <div className="flex-1 w-full sm:w-auto">
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full p-2.5 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-0 outline-none text-sm"
+              />
             </div>
-            
-            <div className="flex gap-2 mt-6 md:mt-0">
+            <div className="flex gap-2">
               <button
                 onClick={() => setSelectedDate(today)}
-                className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors"
+                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
               >
                 Today
               </button>
               <button
                 onClick={clearFilters}
-                className="px-4 py-3 border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium rounded-xl transition-colors"
+                className="px-4 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-xl transition-colors"
               >
                 Clear
               </button>

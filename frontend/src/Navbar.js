@@ -10,6 +10,7 @@ function Navbar() {
   const [menuActive, setMenuActive] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [navStats, setNavStats] = useState({ pending: 0, confirmed: 0 });
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef(null);
@@ -54,6 +55,31 @@ function Navbar() {
       window.removeEventListener('profileUpdated', handleProfileUpdate);
     };
   }, [fetchUserData]);
+
+  // Fetch navbar stats for merchants
+  useEffect(() => {
+    const fetchNavStats = async () => {
+      const token = localStorage.getItem('token');
+      let role = localStorage.getItem('role');
+      if (!role && token) {
+        try { role = JSON.parse(atob(token.split('.')[1])).role; } catch(e) {}
+      }
+      if (role !== 'merchant' || !token) return;
+      try {
+        const res = await fetch(`${API_URL}/merchant/navbar-stats`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setNavStats(data);
+        }
+      } catch (e) { /* ignore */ }
+    };
+    fetchNavStats();
+    // Refresh stats every 30 seconds
+    const interval = setInterval(fetchNavStats, 30000);
+    return () => clearInterval(interval);
+  }, [location.pathname]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -112,10 +138,30 @@ function Navbar() {
       </div>
 
       <div className={`navbar-menu ${menuActive ? 'active' : ''}`}>
+        {isMerchant && (
+          <div className="nav-mobile-stats">
+            <Link to="/merchant-bookings?status=pending" onClick={() => setMenuActive(false)}
+              className="nav-mobile-stat-pill pending">
+              <span className="nav-mobile-stat-label">Pending</span>
+              <span className="nav-mobile-stat-count pending">{navStats.pending}</span>
+            </Link>
+            <Link to="/merchant-bookings?status=confirmed" onClick={() => setMenuActive(false)}
+              className="nav-mobile-stat-pill confirmed">
+              <span className="nav-mobile-stat-label">Confirmed</span>
+              <span className="nav-mobile-stat-count confirmed">{navStats.confirmed}</span>
+            </Link>
+            <Link to="/merchant-bookings?status=ongoing" onClick={() => setMenuActive(false)}
+              className="nav-mobile-stat-pill ongoing">
+              <span className="nav-mobile-stat-label">Ongoing</span>
+              <span className="nav-mobile-stat-count ongoing">{navStats.ongoing}</span>
+            </Link>
+          </div>
+        )}
         {isMerchant ? (
           <>
             <Link to="/merchant-dashboard" className="nav-link" onClick={() => setMenuActive(false)}>Dashboard</Link>
             <Link to="/merchant-bookings" className="nav-link" onClick={() => setMenuActive(false)}>Bookings</Link>
+            <Link to="/merchant-calendar" className="nav-link" onClick={() => setMenuActive(false)}>Calendar</Link>
             <Link to="/profile" className="nav-link" onClick={() => setMenuActive(false)}>Profile</Link>
           </>
         ) : (
@@ -129,9 +175,48 @@ function Navbar() {
 
       <div className="navbar-right">
         {isMerchant ? (
-          <Link to="/merchant-bookings" className="navbar-button" onClick={() => setMenuActive(false)}>
-            Manage Bookings
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Link
+              to="/merchant-bookings?status=pending"
+              onClick={() => setMenuActive(false)}
+              title="Today's Pending"
+              style={{
+                display: 'flex', alignItems: 'center', gap: '4px',
+                background: '#FEF3C7', color: '#B45309',
+                padding: '4px 10px', borderRadius: '20px',
+                fontSize: '13px', fontWeight: 600, textDecoration: 'none',
+                border: '1px solid #FDE68A', whiteSpace: 'nowrap'
+              }}
+            >
+              <span style={{ fontSize: '11px' }}>Pending</span>
+              <span style={{
+                background: '#F59E0B', color: '#fff',
+                borderRadius: '50%', width: '20px', height: '20px',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '11px', fontWeight: 700
+              }}>{navStats.pending}</span>
+            </Link>
+            <Link
+              to="/merchant-bookings?status=confirmed"
+              onClick={() => setMenuActive(false)}
+              title="Today's Confirmed"
+              style={{
+                display: 'flex', alignItems: 'center', gap: '4px',
+                background: '#D1FAE5', color: '#065F46',
+                padding: '4px 10px', borderRadius: '20px',
+                fontSize: '13px', fontWeight: 600, textDecoration: 'none',
+                border: '1px solid #A7F3D0', whiteSpace: 'nowrap'
+              }}
+            >
+              <span style={{ fontSize: '11px' }}>Confirmed</span>
+              <span style={{
+                background: '#10B981', color: '#fff',
+                borderRadius: '50%', width: '20px', height: '20px',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '11px', fontWeight: 700
+              }}>{navStats.confirmed}</span>
+            </Link>
+          </div>
         ) : (
           <Link to="/search" className="navbar-button" onClick={() => setMenuActive(false)}>
             Book Now
@@ -197,6 +282,18 @@ function Navbar() {
                       </svg>
                     </div>
                     <span>My Bookings</span>
+                  </button>
+                  <button onClick={() => { setDropdownOpen(false); navigate('/merchant-calendar'); }} className="dropdown-item">
+                    <div className="dropdown-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 2v4M8 2v4M3 10h18" />
+                        <circle cx="8" cy="15" r="1" fill="currentColor"/>
+                        <circle cx="12" cy="15" r="1" fill="currentColor"/>
+                        <circle cx="16" cy="15" r="1" fill="currentColor"/>
+                      </svg>
+                    </div>
+                    <span>Calendar</span>
                   </button>
                 </>
               )}

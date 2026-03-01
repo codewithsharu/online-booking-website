@@ -1,15 +1,51 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './BottomNav.css';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
 function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [badgeCounts, setBadgeCounts] = useState({ pending: 0, confirmed: 0, ongoing: 0, total: 0 });
+
+  const token = localStorage.getItem('token');
+
+  // Get role from localStorage or decode from JWT
+  let role = localStorage.getItem('role');
+  if (!role) {
+    try {
+      const t = localStorage.getItem('token');
+      if (t) {
+        const payload = JSON.parse(atob(t.split('.')[1]));
+        role = payload.role;
+        if (role) localStorage.setItem('role', role);
+      }
+    } catch (e) { /* ignore */ }
+  }
+  const isMerchant = role === 'merchant';
+
+  // Fetch badge counts for merchant - must be before any returns
+  useEffect(() => {
+    if (!isMerchant || !token) return;
+    const fetchCounts = async () => {
+      try {
+        const res = await fetch(`${API_URL}/merchant/navbar-stats`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setBadgeCounts(data);
+        }
+      } catch (e) { /* ignore */ }
+    };
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 30000);
+    return () => clearInterval(interval);
+  }, [isMerchant, token, location.pathname]);
 
   // Hide if not logged in - show only Login button
-  const token = localStorage.getItem('token');
   if (!token) {
-    // Hide on login page itself and admin pages
     const hideFully = ['/login', '/admin-login', '/admin', '/admin/approvals'];
     if (hideFully.includes(location.pathname)) {
       return null;
@@ -50,20 +86,6 @@ function BottomNav() {
     return null;
   }
 
-  // Get role from localStorage or decode from JWT
-  let role = localStorage.getItem('role');
-  if (!role) {
-    try {
-      const t = localStorage.getItem('token');
-      if (t) {
-        const payload = JSON.parse(atob(t.split('.')[1]));
-        role = payload.role;
-        if (role) localStorage.setItem('role', role);
-      }
-    } catch (e) { /* ignore */ }
-  }
-  const isMerchant = role === 'merchant';
-
   const navItems = isMerchant ? [
     { 
       id: 'dashboard', 
@@ -83,6 +105,20 @@ function BottomNav() {
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           <path d="M16 2V6M8 2V6M3 10H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    },
+    { 
+      id: 'calendar', 
+      label: 'Calendar', 
+      path: '/merchant-calendar',
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M16 2V6M8 2V6M3 10H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <circle cx="8" cy="15" r="1" fill="currentColor"/>
+          <circle cx="12" cy="15" r="1" fill="currentColor"/>
+          <circle cx="16" cy="15" r="1" fill="currentColor"/>
         </svg>
       )
     },
@@ -161,6 +197,11 @@ function BottomNav() {
         const isActive = location.pathname === item.path || 
                         (item.id === 'bookings' && (location.pathname === '/bookings' || location.pathname === '/merchant-bookings')) ||
                         (item.id === 'dashboard' && location.pathname === '/merchant-dashboard');
+        // Badge count logic for merchant tabs
+        let badge = 0;
+        if (isMerchant && item.id === 'bookings') badge = badgeCounts.pending || 0;
+        if (isMerchant && item.id === 'calendar') badge = badgeCounts.confirmed || 0;
+        if (isMerchant && item.id === 'dashboard') badge = badgeCounts.ongoing || 0;
         return (
           <button
             key={item.id}
@@ -168,7 +209,29 @@ function BottomNav() {
             onClick={() => navigate(item.path)}
             style={{ animation: isActive ? 'iconBounce 0.5s ease' : 'none' }}
           >
-            <div className="nav-icon">{item.icon}</div>
+            <div className="nav-icon" style={{ position: 'relative' }}>
+              {item.icon}
+              {badge > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-6px',
+                  right: '-8px',
+                  background: item.id === 'bookings' ? '#F59E0B' : item.id === 'calendar' ? '#3B82F6' : '#8B5CF6',
+                  color: '#fff',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  minWidth: '16px',
+                  height: '16px',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 4px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  lineHeight: 1,
+                }}>{badge}</span>
+              )}
+            </div>
             <span className="nav-label">{item.label}</span>
           </button>
         );

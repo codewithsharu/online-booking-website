@@ -1270,6 +1270,111 @@ app.post('/api/bookings/:bookingId/cancel', verifyToken, async (req, res) => {
   }
 });
 
+// Lightweight navbar stats for merchant (today's pending & confirmed counts)
+app.get('/api/merchant/navbar-stats', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can access this' });
+    }
+
+    // Get all active booking counts for this merchant (not date-filtered)
+    const result = await Booking.aggregate([
+      { $match: { merchantId: req.user.merchantId } },
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
+
+    const counts = {};
+    result.forEach(r => { counts[r._id] = r.count; });
+
+    res.json({
+      pending: counts.pending || 0,
+      confirmed: counts.confirmed || 0,
+      ongoing: counts.ongoing || 0,
+      completed: counts.completed || 0,
+      total: Object.values(counts).reduce((a, b) => a + b, 0)
+    });
+  } catch (error) {
+    console.error('Error fetching navbar stats:', error);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
+// Get merchant's calendar data (booking counts per day for a month)
+app.get('/api/merchant/calendar', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'merchant') {
+      return res.status(403).json({ error: 'Only merchants can access this' });
+    }
+
+    const { year, month } = req.query; // month is 1-based
+    const y = parseInt(year) || new Date().getFullYear();
+    const m = parseInt(month) || (new Date().getMonth() + 1);
+
+    // Use UTC explicitly to avoid server timezone issues
+    const startOfMonth = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0, 0));
+    const endOfMonth = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
+
+    const dayStats = await Booking.aggregate([
+      {
+        $match: {
+          merchantId: req.user.merchantId,
+          bookingDate: { $gte: startOfMonth, $lte: endOfMonth }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            day: { $dayOfMonth: { date: '$bookingDate', timezone: '+05:30' } },
+            status: '$status'
+          },
+          count: { $sum: 1 },
+          revenue: {
+            $sum: { $ifNull: ['$service.price', 0] }
+          }
+        }
+      }
+    ]);
+
+    // Organize into { day: { total, pending, confirmed, ongoing, completed, cancelled } }
+    const calendar = {};
+    dayStats.forEach(({ _id, count }) => {
+      const day = _id.day;
+      if (!calendar[day]) {
+        calendar[day] = { total: 0, pending: 0, confirmed: 0, ongoing: 0, completed: 0, cancelled: 0 };
+      }
+      calendar[day][_id.status] = (calendar[day][_id.status] || 0) + count;
+      calendar[day].total += count;
+    });
+
+    // Month-level summary
+    const allBookings = await Booking.aggregate([
+      {
+        $match: {
+          merchantId: req.user.merchantId,
+          bookingDate: { $gte: startOfMonth, $lte: endOfMonth }
+        }
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const summary = { total: 0, pending: 0, confirmed: 0, ongoing: 0, completed: 0, cancelled: 0 };
+    allBookings.forEach(({ _id, count }) => {
+      summary[_id] = count;
+      summary.total += count;
+    });
+
+    res.json({ calendar, summary, year: y, month: m });
+  } catch (error) {
+    console.error('Error fetching calendar data:', error);
+    res.status(500).json({ error: 'Failed to fetch calendar data' });
+  }
+});
+
 // Get merchant's bookings
 app.get('/api/merchant/bookings', verifyToken, async (req, res) => {
   try {
@@ -1288,10 +1393,9 @@ app.get('/api/merchant/bookings', verifyToken, async (req, res) => {
     }
     
     if (date) {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+      // Date comes as YYYY-MM-DD; treat as UTC to match how bookingDate is stored
+      const startOfDay = new Date(date + 'T00:00:00.000Z');
+      const endOfDay = new Date(date + 'T23:59:59.999Z');
       filter.bookingDate = { $gte: startOfDay, $lte: endOfDay };
     }
 
@@ -1305,11 +1409,12 @@ app.get('/api/merchant/bookings', verifyToken, async (req, res) => {
       ];
     }
 
-    // Stats date range
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Stats date range - use IST (UTC+5:30) to determine "today"
+    const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+    const todayStr = nowIST.toISOString().slice(0, 10);
+    const today = new Date(todayStr + 'T00:00:00.000Z');
+    const tomorrow = new Date(todayStr + 'T00:00:00.000Z');
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
     const [bookings, total, statsAgg] = await Promise.all([
       Booking.find(filter)
