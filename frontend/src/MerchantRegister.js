@@ -387,7 +387,7 @@ function MerchantRegister() {
 
   // Registration Form Step
   return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '20px auto' }}>
+    <div style={{ padding: '100px 20px 20px', maxWidth: '600px', margin: '0 auto' }}>
       <h1>Merchant Registration</h1>
       <p>Only four fields are needed to apply.</p>
 

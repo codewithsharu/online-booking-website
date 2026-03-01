@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
@@ -14,6 +15,7 @@ const CATEGORY_ICONS = {
 };
 
 function Search() {
+  const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState('pincode');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -42,6 +44,21 @@ function Search() {
   const maxDate = new Date();
   maxDate.setDate(maxDate.getDate() + 14);
   const maxDateStr = maxDate.toISOString().split('T')[0];
+
+  const initialSearchDone = useRef(false);
+  const pendingSearch = useRef(false);
+
+  // Read pincode from URL query params (from Hero search)
+  useEffect(() => {
+    if (initialSearchDone.current) return;
+    const pincodeParam = searchParams.get('pincode');
+    if (pincodeParam) {
+      setSearchQuery(pincodeParam);
+      setSearchType('pincode');
+      initialSearchDone.current = true;
+      pendingSearch.current = true;
+    }
+  }, [searchParams]);
 
   // Search services by pincode (and optionally category)
   const handleSearch = async (e) => {
@@ -94,6 +111,15 @@ function Search() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCategory]);
+
+  // Auto-search when query is set from URL params
+  useEffect(() => {
+    if (pendingSearch.current && searchQuery.trim()) {
+      pendingSearch.current = false;
+      handleSearch();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   const openBookingModal = (item) => {
     const merchant = {
@@ -238,7 +264,7 @@ function Search() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white pt-24">
         <div className="max-w-4xl mx-auto px-4 py-12 text-center">
           <h1 className="text-3xl md:text-4xl font-bold mb-3">
             Find & Book Services

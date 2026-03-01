@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import grooming from './grooming.jpg';
 import healthcare from './healthcare.jpg';
 import services from './services.jpg';
@@ -14,6 +15,8 @@ import Footer from './Footer';
 const Hero = () => {
   const scrollContainerRef = useRef(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [pincode, setPincode] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
@@ -43,7 +46,7 @@ const Hero = () => {
   }, [isPaused]);
 
   return (
-    <div className="">
+    <div className="pt-20">
       <section className="relative py-12 bg-white sm:py-16 lg:py-20">
         <div className="absolute inset-0">
           <img className="object-cover w-full h-full" src="https://landingfoliocom.imgix.net/store/collection/clarity-blog/images/hero/5/grid-pattern.png" alt="" />
@@ -61,16 +64,21 @@ const Hero = () => {
 Choose your time, book instantly, and arrive stress-free.
             </p>
 
-            <form action="#" method="POST"
+            <form onSubmit={(e) => { e.preventDefault(); if (pincode.trim()) navigate(`/search?pincode=${pincode.trim()}`); }}
               className="max-w-md mx-auto mt-8 space-y-4 sm:space-x-4 sm:flex sm:space-y-0 sm:items-end">
               <div className="flex-1">
-                <label htmlFor="email" className="sr-only">
-                  Email address
+                <label htmlFor="pincode-input" className="sr-only">
+                  Area pin code
                 </label>
                 <div>
-                  <input type="email" name="email" id="email"
+                  <input type="text" name="pincode" id="pincode-input"
+                    value={pincode}
+                    onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     className="block w-full px-4 py-3 sm:py-3.5 text-base font-medium text-gray-900 placeholder-gray-500 border border-gray-300 rounded-lg sm:text-sm focus:ring-gray-900 focus:border-gray-900"
-                    placeholder="Enter area pin code" />
+                    placeholder="Enter area pin code" 
+                    inputMode="numeric"
+                    maxLength={6}
+                  />
                 </div>
               </div>
 
@@ -79,10 +87,10 @@ Choose your time, book instantly, and arrive stress-free.
                   className="absolute transition-all duration-1000 opacity-70 inset-0 bg-gradient-to-r from-[#44BCFF] via-[#FF44EC] to-[#FF675E] rounded-xl blur-lg filter group-hover:opacity-100 group-hover:duration-200">
                 </div>
 
-                <button type="button"
+                <button type="submit"
                   className="inline-flex relative items-center justify-center w-full sm:w-auto px-8 py-3 sm:text-sm text-base sm:py-3.5 font-semibold text-white transition-all duration-200 border border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2"
                   style={{backgroundColor: '#4e71ff'}}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#4e71ff'}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#3b5de7'}
                   onMouseLeave={(e) => e.target.style.backgroundColor = '#4e71ff'}>
                   Search
                 </button>

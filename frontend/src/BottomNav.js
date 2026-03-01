@@ -50,11 +50,54 @@ function BottomNav() {
     return null;
   }
 
-  // Get role from localStorage
-  const role = localStorage.getItem('role');
+  // Get role from localStorage or decode from JWT
+  let role = localStorage.getItem('role');
+  if (!role) {
+    try {
+      const t = localStorage.getItem('token');
+      if (t) {
+        const payload = JSON.parse(atob(t.split('.')[1]));
+        role = payload.role;
+        if (role) localStorage.setItem('role', role);
+      }
+    } catch (e) { /* ignore */ }
+  }
   const isMerchant = role === 'merchant';
 
-  const navItems = [
+  const navItems = isMerchant ? [
+    { 
+      id: 'dashboard', 
+      label: 'Dashboard', 
+      path: '/merchant-dashboard',
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    },
+    { 
+      id: 'bookings', 
+      label: 'Bookings', 
+      path: '/merchant-bookings',
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M16 2V6M8 2V6M3 10H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    },
+    { 
+      id: 'profile', 
+      label: 'Profile', 
+      path: '/profile',
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    }
+  ] : [
     { 
       id: 'home', 
       label: 'Home', 
@@ -69,7 +112,7 @@ function BottomNav() {
     { 
       id: 'bookings', 
       label: 'Bookings', 
-      path: isMerchant ? '/merchant-bookings' : '/bookings',
+      path: '/bookings',
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -90,8 +133,8 @@ function BottomNav() {
     },
     { 
       id: 'profile', 
-      label: isMerchant ? 'Dashboard' : 'Profile', 
-      path: isMerchant ? '/merchant-dashboard' : '/home',
+      label: 'Profile', 
+      path: '/home',
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -105,7 +148,8 @@ function BottomNav() {
     <div className="bottom-nav">
       {navItems.map((item) => {
         const isActive = location.pathname === item.path || 
-                        (item.id === 'bookings' && (location.pathname === '/bookings' || location.pathname === '/merchant-bookings'));
+                        (item.id === 'bookings' && (location.pathname === '/bookings' || location.pathname === '/merchant-bookings')) ||
+                        (item.id === 'dashboard' && location.pathname === '/merchant-dashboard');
         return (
           <button
             key={item.id}

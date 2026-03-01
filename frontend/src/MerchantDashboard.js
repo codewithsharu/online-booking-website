@@ -209,113 +209,104 @@ function MerchantDashboard() {
 
   if (loading) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2>Loading...</h2>
+      <div className="min-h-screen bg-gradient-to-b from-blue-600 to-white flex items-center justify-center pt-24">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+          <p className="text-gray-500 mt-4 text-lg">Loading dashboard...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h1>Merchant Dashboard</h1>
-        <button 
-          onClick={handleLogout}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: '#dc3545',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer'
-          }}
-        >
-          Logout
-        </button>
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white pb-20">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white pt-24">
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold">Merchant Dashboard</h1>
+              <p className="text-blue-200 mt-1">Manage your shop and services</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/30 rounded-xl font-medium transition-colors text-sm"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
       </div>
 
+      <div className="max-w-5xl mx-auto px-4 mt-8">
       {!merchantData || !merchantData.hasApplication ? (
-        <div style={{ 
-          padding: '40px', 
-          textAlign: 'center', 
-          backgroundColor: '#fff3cd', 
-          borderRadius: '8px',
-          border: '2px solid #ffc107'
-        }}>
-          <h2>📋 No Application Found</h2>
-          <p>Please submit a merchant application to get started.</p>
-          <a href="/merchant-register" style={{ 
-            display: 'inline-block',
-            marginTop: '20px',
-            padding: '12px 24px',
-            backgroundColor: '#007bff',
-            color: 'white',
-            textDecoration: 'none',
-            borderRadius: '5px',
-            fontWeight: 'bold'
-          }}>Apply as Merchant</a>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-10 text-center">
+          <div className="w-20 h-20 mx-auto bg-yellow-50 rounded-full flex items-center justify-center mb-4 text-4xl">📋</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">No Application Found</h2>
+          <p className="text-gray-500 mb-6">Please submit a merchant application to get started.</p>
+          <a href="/merchant-register" className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors">
+            Apply as Merchant
+          </a>
         </div>
       ) : merchantData.status === 'pending' ? (
-        <div style={{ 
-          padding: '40px', 
-          textAlign: 'center', 
-          backgroundColor: '#fff3cd', 
-          borderRadius: '8px',
-          border: '2px solid #ffc107'
-        }}>
-          <h2>⏳ Application Under Review</h2>
-          <p><strong>Status:</strong> <span style={{ color: '#ff9800' }}>PENDING</span></p>
-          <p>Your merchant application is being reviewed by our admin team.</p>
-          <p style={{ fontSize: '14px', color: '#666', marginTop: '20px' }}>Applied on: {new Date(merchantData.application.appliedAt).toLocaleString()}</p>
-          <div style={{ 
-            marginTop: '30px',
-            padding: '20px',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '5px',
-            textAlign: 'left'
-          }}>
-            <h3>Application Details:</h3>
-            <p><strong>Shop Name:</strong> {merchantData.application.shopName}</p>
-            <p><strong>Owner Name:</strong> {merchantData.application.ownerName}</p>
-            <p><strong>Pincode:</strong> {merchantData.application.pincode}</p>
-            <p><strong>Shop Address:</strong> {merchantData.application.shopAddress}</p>
+        <div className="bg-white rounded-2xl shadow-sm border border-yellow-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 p-8 text-center border-b border-yellow-200">
+            <div className="w-16 h-16 mx-auto bg-yellow-100 rounded-full flex items-center justify-center mb-4 text-3xl">⏳</div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Application Under Review</h2>
+            <span className="inline-flex items-center px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-semibold border border-yellow-200">PENDING</span>
+            <p className="text-gray-500 mt-3">Your merchant application is being reviewed by our admin team.</p>
+            <p className="text-sm text-gray-400 mt-2">Applied on: {new Date(merchantData.application.appliedAt).toLocaleString()}</p>
+          </div>
+          <div className="p-6">
+            <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-4">Application Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-50 rounded-xl p-4">
+                <p className="text-xs text-gray-400 mb-1">Shop Name</p>
+                <p className="font-medium text-gray-800">{merchantData.application.shopName}</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <p className="text-xs text-gray-400 mb-1">Owner Name</p>
+                <p className="font-medium text-gray-800">{merchantData.application.ownerName}</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <p className="text-xs text-gray-400 mb-1">Pincode</p>
+                <p className="font-medium text-gray-800">{merchantData.application.pincode}</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <p className="text-xs text-gray-400 mb-1">Shop Address</p>
+                <p className="font-medium text-gray-800">{merchantData.application.shopAddress}</p>
+              </div>
+            </div>
           </div>
         </div>
       ) : merchantData.status === 'rejected' ? (
-        <div style={{ 
-          padding: '40px', 
-          textAlign: 'center', 
-          backgroundColor: '#f8d7da', 
-          borderRadius: '8px',
-          border: '2px solid #dc3545'
-        }}>
-          <h2>❌ Application Rejected</h2>
-          <p><strong>Status:</strong> <span style={{ color: '#dc3545' }}>REJECTED</span></p>
-          <p>Unfortunately, your merchant application was not approved.</p>
+        <div className="bg-white rounded-2xl shadow-sm border border-red-200 p-10 text-center">
+          <div className="w-16 h-16 mx-auto bg-red-50 rounded-full flex items-center justify-center mb-4 text-3xl">❌</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Application Rejected</h2>
+          <span className="inline-flex items-center px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold border border-red-200">REJECTED</span>
+          <p className="text-gray-500 mt-3">Unfortunately, your merchant application was not approved.</p>
           {merchantData.application.rejectionReason && (
-            <p style={{ marginTop: '15px', fontWeight: 'bold' }}>
-              Reason: {merchantData.application.rejectionReason}
-            </p>
+            <p className="mt-4 font-semibold text-gray-700">Reason: {merchantData.application.rejectionReason}</p>
           )}
-          <p style={{ fontSize: '14px', color: '#666', marginTop: '20px' }}>Rejected on: {new Date(merchantData.application.rejectedAt).toLocaleString()}</p>
+          <p className="text-sm text-gray-400 mt-3">Rejected on: {new Date(merchantData.application.rejectedAt).toLocaleString()}</p>
         </div>
       ) : (
         <div>
-          <div style={{ 
-            marginBottom: '20px', 
-            padding: '20px', 
-            backgroundColor: '#d4edda', 
-            borderRadius: '8px',
-            border: '2px solid #28a745'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ margin: '0 0 10px 0', color: '#155724' }}>✅ Approved Merchant</h3>
-                <p style={{ margin: '5px 0' }}><strong>Status:</strong> <span style={{ color: '#28a745', fontWeight: 'bold' }}>APPROVED</span></p>
-                <p style={{ margin: '5px 0' }}><strong>Merchant ID:</strong> {merchantData.merchantId}</p>
-                <p style={{ margin: '5px 0' }}><strong>Shop Name:</strong> {merchantData.application.shopName}</p>
+          {/* Approved Status Banner */}
+          <div className="bg-white rounded-2xl shadow-sm border border-green-200 p-6 mb-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl">✅</div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800">Approved Merchant</h3>
+                  <div className="flex flex-wrap items-center gap-3 mt-1 text-sm">
+                    <span className="inline-flex items-center px-2.5 py-0.5 bg-green-100 text-green-700 rounded-full font-semibold border border-green-200">APPROVED</span>
+                    <span className="text-gray-500">ID: <span className="font-mono text-blue-600">{merchantData.merchantId}</span></span>
+                    <span className="text-gray-500">{merchantData.application.shopName}</span>
+                  </div>
+                </div>
               </div>
-              <div style={{ textAlign: 'right', fontSize: '12px', color: '#666' }}>
+              <div className="text-sm text-gray-400 text-right">
                 <p>Applied: {new Date(merchantData.application.appliedAt).toLocaleDateString()}</p>
                 {merchantData.application.approvedAt && (
                   <p>Approved: {new Date(merchantData.application.approvedAt).toLocaleDateString()}</p>
@@ -326,73 +317,62 @@ function MerchantDashboard() {
 
           {!isEditing ? (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h2>Profile View</h2>
-                <button 
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-800">Shop Profile</h2>
+                <button
                   onClick={() => setIsEditing(true)}
-                  style={{
-                    padding: '10px 20px',
-                    backgroundColor: '#007bff',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: 'pointer'
-                  }}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors text-sm flex items-center gap-2"
                 >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
                   Edit Profile
                 </button>
               </div>
 
-              <div style={{ 
-                border: '1px solid #dee2e6', 
-                borderRadius: '8px', 
-                padding: '20px',
-                backgroundColor: 'white'
-              }}>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 {profileData?.shopImage && (
-                  <div style={{ marginBottom: '20px' }}>
-                    <img 
-                      src={profileData.shopImage} 
-                      alt="Shop" 
-                      style={{ 
-                        maxWidth: '300px', 
-                        maxHeight: '300px', 
-                        borderRadius: '8px',
-                        objectFit: 'cover'
-                      }} 
-                    />
+                  <div className="relative h-48 bg-gray-100">
+                    <img src={profileData.shopImage} alt="Shop" className="w-full h-full object-cover" />
                   </div>
                 )}
-
-                <div style={{ display: 'grid', gap: '15px' }}>
-                  <div>
-                    <strong>Shop Name:</strong> {profileData?.shopName || 'Not set'}
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-400 mb-1 uppercase tracking-wide font-medium">Shop Name</p>
+                    <p className="text-gray-800 font-medium">{profileData?.shopName || 'Not set'}</p>
                   </div>
-                  <div>
-                    <strong>Category:</strong> {profileData?.shopCategory || 'Not set'}
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-400 mb-1 uppercase tracking-wide font-medium">Category</p>
+                    <p className="text-gray-800 font-medium">{profileData?.shopCategory || 'Not set'}</p>
                   </div>
-                  <div>
-                    <strong>Location:</strong> {profileData?.location?.city || 'Not set'}, State: {profileData?.location?.state || 'Not set'}, Pincode: {profileData?.pincode || 'Not set'}
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-400 mb-1 uppercase tracking-wide font-medium">Location</p>
+                    <p className="text-gray-800 font-medium">{profileData?.location?.city || 'Not set'}, {profileData?.location?.state || 'N/A'} - {profileData?.pincode || ''}</p>
                   </div>
-                  <div>
-                    <strong>Shop Address:</strong> {profileData?.shopAddress || 'Not set'}
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-400 mb-1 uppercase tracking-wide font-medium">Working Hours</p>
+                    <p className="text-gray-800 font-medium">{profileData?.workingHours?.openingTime || 'Not set'} - {profileData?.workingHours?.closingTime || 'Not set'}</p>
                   </div>
-                  <div>
-                    <strong>Working Hours:</strong> {profileData?.workingHours?.openingTime || 'Not set'} - {profileData?.workingHours?.closingTime || 'Not set'}
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-400 mb-1 uppercase tracking-wide font-medium">Slot Duration</p>
+                    <p className="text-gray-800 font-medium">{profileData?.slotDuration ? `${profileData.slotDuration} minutes` : 'Not set'}</p>
                   </div>
-                  <div>
-                    <strong>Slot Duration:</strong> {profileData?.slotDuration ? `${profileData.slotDuration} minutes` : 'Not set'}
+                  <div className="bg-gray-50 rounded-xl p-4 md:col-span-2">
+                    <p className="text-xs text-gray-400 mb-1 uppercase tracking-wide font-medium">Shop Address</p>
+                    <p className="text-gray-800 font-medium">{profileData?.shopAddress || 'Not set'}</p>
                   </div>
-                  <div>
-                    <strong>Services:</strong>
+                  <div className="bg-gray-50 rounded-xl p-4 md:col-span-2">
+                    <p className="text-xs text-gray-400 mb-2 uppercase tracking-wide font-medium">Services</p>
                     {profileData?.services && profileData.services.length > 0 ? (
-                      <ul style={{ marginTop: '10px', paddingLeft: '20px' }}>
+                      <div className="flex flex-wrap gap-2">
                         {profileData.services.map((service, index) => (
-                          <li key={index}>{service.name || service}</li>
+                          <span key={index} className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 text-sm font-medium rounded-full border border-blue-100">
+                            {service.name || service}
+                          </span>
                         ))}
-                      </ul>
+                      </div>
                     ) : (
-                      <span> No services added</span>
+                      <span className="text-gray-400 text-sm">No services added</span>
                     )}
                   </div>
                 </div>
@@ -400,49 +380,21 @@ function MerchantDashboard() {
             </div>
           ) : (
             <div>
-              <h2 style={{ marginBottom: '20px' }}>Edit Profile</h2>
-              
-              <div style={{ 
-                border: '1px solid #dee2e6', 
-                borderRadius: '8px', 
-                padding: '20px',
-                backgroundColor: 'white'
-              }}>
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                    Shop Name:
-                  </label>
-                  <input
-                    type="text"
-                    name="shopName"
-                    value={formData.shopName}
-                    onChange={handleInputChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid #ced4da',
-                      borderRadius: '4px',
-                      fontSize: '14px'
-                    }}
-                  />
+              <h2 className="text-xl font-bold text-gray-800 mb-6">Edit Profile</h2>
+
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+                {/* Shop Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Shop Name</label>
+                  <input type="text" name="shopName" value={formData.shopName} onChange={handleInputChange}
+                    className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 outline-none transition-colors text-sm" />
                 </div>
 
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                    Shop Category:
-                  </label>
-                  <select
-                    name="shopCategory"
-                    value={formData.shopCategory}
-                    onChange={handleInputChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid #ced4da',
-                      borderRadius: '4px',
-                      fontSize: '14px'
-                    }}
-                  >
+                {/* Category */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Shop Category</label>
+                  <select name="shopCategory" value={formData.shopCategory} onChange={handleInputChange}
+                    className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 outline-none bg-white text-sm">
                     <option value="">Select Category</option>
                     <option value="Barber">Barber</option>
                     <option value="Salon">Salon</option>
@@ -460,286 +412,104 @@ function MerchantDashboard() {
                   </select>
                 </div>
 
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                    Shop Image:
-                  </label>
+                {/* Shop Image */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Shop Image</label>
                   {formData.shopImage && !imageFile && (
-                    <div style={{ marginBottom: '10px' }}>
-                      <img 
-                        src={formData.shopImage} 
-                        alt="Current shop" 
-                        style={{ 
-                          maxWidth: '200px', 
-                          maxHeight: '200px', 
-                          borderRadius: '8px',
-                          objectFit: 'cover'
-                        }} 
-                      />
+                    <div className="mb-3">
+                      <img src={formData.shopImage} alt="Current shop" className="w-48 h-36 object-cover rounded-xl border border-gray-200" />
                     </div>
                   )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid #ced4da',
-                      borderRadius: '4px',
-                      fontSize: '14px'
-                    }}
-                  />
-                  {imageFile && (
-                    <p style={{ marginTop: '5px', fontSize: '12px', color: '#6c757d' }}>
-                      New image selected: {imageFile.name}
-                    </p>
-                  )}
+                  <input type="file" accept="image/*" onChange={handleImageChange}
+                    className="w-full p-3 rounded-xl border-2 border-gray-200 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100" />
+                  {imageFile && <p className="mt-2 text-xs text-gray-500">New image: {imageFile.name}</p>}
                 </div>
 
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                    Pincode:
-                  </label>
-                  <input
-                    type="text"
-                    name="pincode"
-                    value={formData.pincode}
-                    onChange={handleInputChange}
-                    maxLength="6"
-                    pattern="[0-9]{6}"
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid #ced4da',
-                      borderRadius: '4px',
-                      fontSize: '14px'
-                    }}
-                  />
+                {/* Location Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Pincode</label>
+                    <input type="text" name="pincode" value={formData.pincode} onChange={handleInputChange} maxLength="6"
+                      className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 outline-none transition-colors text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                    <input type="text" name="city" value={formData.city} onChange={handleInputChange}
+                      className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 outline-none transition-colors text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+                    <input type="text" name="state" value={formData.state} onChange={handleInputChange}
+                      className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 outline-none transition-colors text-sm" />
+                  </div>
                 </div>
 
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                    Shop Address:
-                  </label>
-                  <textarea
-                    name="shopAddress"
-                    value={formData.shopAddress}
-                    onChange={handleInputChange}
-                    rows="3"
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid #ced4da',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      resize: 'vertical'
-                    }}
-                  ></textarea>
+                {/* Shop Address */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Shop Address</label>
+                  <textarea name="shopAddress" value={formData.shopAddress} onChange={handleInputChange} rows="3"
+                    className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 outline-none transition-colors resize-none text-sm" />
                 </div>
 
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                    City:
-                  </label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid #ced4da',
-                      borderRadius: '4px',
-                      fontSize: '14px'
-                    }}
-                  />
+                {/* Working Hours */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Opening Time</label>
+                    <input type="time" name="openingTime" value={formData.openingTime} onChange={handleInputChange}
+                      className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 outline-none transition-colors text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Closing Time</label>
+                    <input type="time" name="closingTime" value={formData.closingTime} onChange={handleInputChange}
+                      className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 outline-none transition-colors text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Slot Duration</label>
+                    <select name="slotDuration" value={formData.slotDuration} onChange={handleInputChange}
+                      className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 outline-none bg-white text-sm">
+                      <option value="">Select Duration</option>
+                      <option value="10">10 minutes</option>
+                      <option value="15">15 minutes</option>
+                      <option value="30">30 minutes</option>
+                    </select>
+                  </div>
                 </div>
 
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                    State:
-                  </label>
-                  <input
-                    type="text"
-                    name="state"
-                    value={formData.state}
-                    onChange={handleInputChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid #ced4da',
-                      borderRadius: '4px',
-                      fontSize: '14px'
-                    }}
-                  />
-                </div>
-
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                    Opening Time:
-                  </label>
-                  <input
-                    type="time"
-                    name="openingTime"
-                    value={formData.openingTime}
-                    onChange={handleInputChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid #ced4da',
-                      borderRadius: '4px',
-                      fontSize: '14px'
-                    }}
-                  />
-                </div>
-
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                    Closing Time:
-                  </label>
-                  <input
-                    type="time"
-                    name="closingTime"
-                    value={formData.closingTime}
-                    onChange={handleInputChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid #ced4da',
-                      borderRadius: '4px',
-                      fontSize: '14px'
-                    }}
-                  />
-                </div>
-
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                    Slot Duration:
-                  </label>
-                  <select
-                    name="slotDuration"
-                    value={formData.slotDuration}
-                    onChange={handleInputChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid #ced4da',
-                      borderRadius: '4px',
-                      fontSize: '14px'
-                    }}
-                  >
-                    <option value="">Select Duration</option>
-                    <option value="10">10 minutes</option>
-                    <option value="15">15 minutes</option>
-                    <option value="30">30 minutes</option>
-                  </select>
-                </div>
-
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                    Services:
-                  </label>
-                  <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                    <input
-                      type="text"
-                      value={newService}
-                      onChange={(e) => setNewService(e.target.value)}
-                      placeholder="Enter service name"
-                      style={{
-                        flex: 1,
-                        padding: '8px',
-                        border: '1px solid #ced4da',
-                        borderRadius: '4px',
-                        fontSize: '14px'
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddService}
-                      style={{
-                        padding: '8px 16px',
-                        backgroundColor: '#28a745',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '14px'
-                      }}
-                    >
+                {/* Services */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Services</label>
+                  <div className="flex gap-2 mb-3">
+                    <input type="text" value={newService} onChange={(e) => setNewService(e.target.value)} placeholder="Enter service name"
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddService())}
+                      className="flex-1 p-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 outline-none transition-colors text-sm" />
+                    <button type="button" onClick={handleAddService}
+                      className="px-5 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-colors text-sm">
                       Add
                     </button>
                   </div>
                   {formData.services.length > 0 && (
-                    <ul style={{ listStyle: 'none', padding: 0 }}>
+                    <div className="flex flex-wrap gap-2">
                       {formData.services.map((service, index) => (
-                        <li 
-                          key={index}
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            padding: '8px',
-                            marginBottom: '5px',
-                            backgroundColor: '#f8f9fa',
-                            borderRadius: '4px',
-                            border: '1px solid #dee2e6'
-                          }}
-                        >
-                          <span>{service}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveService(index)}
-                            style={{
-                              padding: '4px 12px',
-                              backgroundColor: '#dc3545',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '12px'
-                            }}
-                          >
-                            Remove
+                        <span key={index} className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm border border-blue-100">
+                          {service}
+                          <button type="button" onClick={() => handleRemoveService(index)}
+                            className="w-5 h-5 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-200 transition-colors text-xs font-bold">
+                            &times;
                           </button>
-                        </li>
+                        </span>
                       ))}
-                    </ul>
+                    </div>
                   )}
                 </div>
 
-                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                  <button
-                    onClick={handleSave}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      backgroundColor: '#28a745',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '5px',
-                      cursor: 'pointer',
-                      fontSize: '16px',
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    Save
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <button onClick={handleSave}
+                    className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors">
+                    Save Profile
                   </button>
-                  <button
-                    onClick={handleCancel}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      backgroundColor: '#6c757d',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '5px',
-                      cursor: 'pointer',
-                      fontSize: '16px',
-                      fontWeight: 'bold'
-                    }}
-                  >
+                  <button onClick={handleCancel}
+                    className="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors">
                     Cancel
                   </button>
                 </div>
@@ -748,9 +518,12 @@ function MerchantDashboard() {
           )}
 
           {/* Service Publishing Section */}
-          <MerchantServices />
+          <div className="mt-8">
+            <MerchantServices />
+          </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

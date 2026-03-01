@@ -305,7 +305,7 @@ function Bookings() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white pb-20">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white pt-24">
         <div className="max-w-4xl mx-auto px-4 py-8">
           <h1 className="text-2xl md:text-3xl font-bold mb-2">My Bookings</h1>
           <p className="text-blue-100">View and manage your appointments</p>

@@ -5,19 +5,87 @@ const cors = require('cors');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const mongoose = require('mongoose');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
 require('dotenv').config();
 
 // Import Models
 const User = require('./models/User');
 const MerchantInfo = require('./models/MerchantInfo');
-const OTPService = require('./models/OTPService');
+const OTPService = require('./models/OTPStore');
 const Booking = require('./models/Booking');
 const Service = require('./models/Service');
 const { CATEGORIES } = require('./models/Service');
 
 const app = express();
-app.use(express.json());
-app.use(cors());
+
+// ==================== SECURITY MIDDLEWARE ====================
+// Security headers
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+
+// CORS - allow your domains
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:5656',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.some(allowed => origin.startsWith(allowed))) {
+      return callback(null, true);
+    }
+    // In production on Vercel, same-origin requests have no CORS issue
+    return callback(null, true);
+  },
+  credentials: true
+}));
+
+// Body parsing with size limits
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Prevent NoSQL injection
+app.use(mongoSanitize());
+
+// Rate limiters
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200,
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const otpSendLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 5,
+  message: { error: 'Too many OTP requests. Please wait 10 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.body?.phone || req.ip
+});
+
+const otpVerifyLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many verification attempts. Please wait.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many login attempts. Please wait 15 minutes.' }
+});
+
+// Apply general rate limit to all routes
+app.use('/api/', generalLimiter);
 
 // Cloudinary Configuration
 cloudinary.config({
@@ -155,7 +223,7 @@ const verifyToken = (req, res, next) => {
 // ==================== OTP ENDPOINTS ====================
 
 // Send OTP
-app.post('/api/send-otp', async (req, res) => {
+app.post('/api/send-otp', otpSendLimiter, async (req, res) => {
   try {
     const { phone } = req.body;
     const normalizedPhone = normalizePhone(phone);
@@ -163,7 +231,7 @@ app.post('/api/send-otp', async (req, res) => {
     // Check if it's a test account - bypass OTP
     if (TEST_ACCOUNTS[normalizedPhone]) {
       console.log(`🧪 Test account detected: ${normalizedPhone} - Using bypass OTP: 1111`);
-      OTPService.saveOTP(normalizedPhone, '1111');
+      await OTPService.saveOTP(normalizedPhone, '1111');
       return res.json({ 
         success: true, 
         message: 'OTP sent successfully (Test Account)',
@@ -172,7 +240,7 @@ app.post('/api/send-otp', async (req, res) => {
     }
 
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    OTPService.saveOTP(normalizedPhone, otp);
+    await OTPService.saveOTP(normalizedPhone, otp);
 
     // Use approved template exactly as registered with provider
     const message = SMS_TEMPLATE.replace('{{OTP}}', otp);
@@ -230,7 +298,7 @@ app.post('/api/send-otp', async (req, res) => {
 });
 
 // Verify OTP
-app.post('/api/verify-otp', async (req, res) => {
+app.post('/api/verify-otp', otpVerifyLimiter, async (req, res) => {
   try {
     const { phone, otp } = req.body;
     const normalizedPhone = normalizePhone(phone);
@@ -250,7 +318,7 @@ app.post('/api/verify-otp', async (req, res) => {
       console.log(`🧪 Test account OTP accepted: ${normalizedPhone}`);
     } else {
       // Regular OTP verification with detailed response
-      verifyResult = OTPService.verifyOTP(normalizedPhone, otp);
+      verifyResult = await OTPService.verifyOTP(normalizedPhone, otp);
     }
     
     if (!verifyResult.isValid) {
@@ -495,7 +563,7 @@ app.get('/api/clear', (req, res) => {
 // ==================== ADMIN ENDPOINTS ====================
 
 // Admin login
-app.post('/api/admin-login', (req, res) => {
+app.post('/api/admin-login', authLimiter, (req, res) => {
   try {
     const { password } = req.body;
     
@@ -1222,34 +1290,48 @@ app.get('/api/merchant/bookings', verifyToken, async (req, res) => {
       filter.bookingDate = { $gte: startOfDay, $lte: endOfDay };
     }
 
-    const bookings = await Booking.find(filter)
-      .sort({ bookingDate: 1, timeSlot: 1 })
-      .skip((numericPage - 1) * numericLimit)
-      .limit(numericLimit)
-      .lean();
-
-    const total = await Booking.countDocuments(filter);
-
-    // Get stats
+    // Stats date range
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    const [bookings, total, statsAgg] = await Promise.all([
+      Booking.find(filter)
+        .sort({ bookingDate: 1, timeSlot: 1 })
+        .skip((numericPage - 1) * numericLimit)
+        .limit(numericLimit)
+        .lean(),
+      Booking.countDocuments(filter),
+      Booking.aggregate([
+        { $match: { merchantId: req.user.merchantId } },
+        { $facet: {
+          todayBookings: [
+            { $match: { bookingDate: { $gte: today, $lt: tomorrow }, status: { $in: ['pending', 'confirmed'] } } },
+            { $count: 'count' }
+          ],
+          pendingCount: [
+            { $match: { status: 'pending' } },
+            { $count: 'count' }
+          ],
+          ongoingCount: [
+            { $match: { status: 'ongoing' } },
+            { $count: 'count' }
+          ],
+          totalCompleted: [
+            { $match: { status: 'completed' } },
+            { $count: 'count' }
+          ]
+        }}
+      ])
+    ]);
+
+    const facets = statsAgg[0] || {};
     const stats = {
-      todayBookings: await Booking.countDocuments({
-        merchantId: req.user.merchantId,
-        bookingDate: { $gte: today, $lt: tomorrow },
-        status: { $in: ['pending', 'confirmed'] }
-      }),
-      pendingCount: await Booking.countDocuments({
-        merchantId: req.user.merchantId,
-        status: 'pending'
-      }),
-      totalCompleted: await Booking.countDocuments({
-        merchantId: req.user.merchantId,
-        status: 'completed'
-      })
+      todayBookings: facets.todayBookings?.[0]?.count || 0,
+      pendingCount: facets.pendingCount?.[0]?.count || 0,
+      ongoingCount: facets.ongoingCount?.[0]?.count || 0,
+      totalCompleted: facets.totalCompleted?.[0]?.count || 0
     };
 
     res.json({
@@ -1681,6 +1763,52 @@ app.get('/api/services/search', async (req, res) => {
     console.error('Error searching services:', error);
     res.status(500).json({ error: 'Failed to search services' });
   }
+});
+
+// ==================== HEALTH CHECK ====================
+app.get('/api/health', (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const dbStates = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+  
+  res.json({
+    status: dbState === 1 ? 'ok' : 'degraded',
+    uptime: Math.floor(process.uptime()),
+    database: dbStates[dbState] || 'unknown',
+    memory: {
+      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
+      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + 'MB'
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ==================== GLOBAL ERROR HANDLER ====================
+// 404 handler for undefined API routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ error: 'API endpoint not found', path: req.originalUrl });
+});
+
+// Global error handling middleware
+app.use((err, req, res, _next) => {
+  console.error('Unhandled error:', err.stack || err);
+  
+  // Multer errors
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ error: 'File too large. Maximum size is 5MB.' });
+  }
+  
+  // MongoDB validation errors
+  if (err.name === 'ValidationError') {
+    const messages = Object.values(err.errors).map(e => e.message);
+    return res.status(400).json({ error: 'Validation failed', details: messages });
+  }
+  
+  // MongoDB duplicate key errors
+  if (err.code === 11000) {
+    return res.status(409).json({ error: 'Duplicate entry detected' });
+  }
+  
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 // Start server

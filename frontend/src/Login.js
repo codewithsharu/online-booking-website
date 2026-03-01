@@ -273,7 +273,7 @@ function Login() {
       console.log('OTP verify response data:', data);
 
       if (res.ok) {
-        // Store only JWT token; derive role from token payload
+        // Store JWT token and role
         localStorage.setItem('token', data.token);
 
         let roleFromToken = data.role;
@@ -282,6 +282,11 @@ function Login() {
           roleFromToken = payload.role;
         } catch (e) {
           console.warn('⚠️ Could not decode role from token, falling back to API role');
+        }
+
+        // Store role in localStorage so Navbar/BottomNav can read it
+        if (roleFromToken) {
+          localStorage.setItem('role', roleFromToken);
         }
 
         setStep('verified');

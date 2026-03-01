@@ -1,22 +1,39 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './Login';
-import Home from './Home';
-import Admin from './Admin';
-import AdminLogin from './AdminLogin';
-import MerchantRegister from './MerchantRegister';
-import MerchantDashboard from './MerchantDashboard';
-import MerchantBookings from './MerchantBookings';
-import AdminApproval from './AdminApproval';
-import Clear from './Clear';
-import Search from './Search';
-import Bookings from './Bookings';
 import ProtectedRoute from './ProtectedRoute';
-import Hero from './Hero';
 import BottomNav from './BottomNav';
 import Navbar from './Navbar';
-import Test from './test';
-import UserProfile from './UserProfile';
+
+// Lazy-loaded routes for code splitting
+const Login = lazy(() => import('./Login'));
+const Home = lazy(() => import('./Home'));
+const Admin = lazy(() => import('./Admin'));
+const AdminLogin = lazy(() => import('./AdminLogin'));
+const MerchantRegister = lazy(() => import('./MerchantRegister'));
+const MerchantDashboard = lazy(() => import('./MerchantDashboard'));
+const MerchantBookings = lazy(() => import('./MerchantBookings'));
+const AdminApproval = lazy(() => import('./AdminApproval'));
+const Clear = lazy(() => import('./Clear'));
+const Search = lazy(() => import('./Search'));
+const Bookings = lazy(() => import('./Bookings'));
+const Hero = lazy(() => import('./Hero'));
+const Test = lazy(() => import('./test'));
+const UserProfile = lazy(() => import('./UserProfile'));
+
+// Loading fallback component
+const PageLoader = () => (
+  <div style={{ 
+    display: 'flex', justifyContent: 'center', alignItems: 'center', 
+    minHeight: '80vh', flexDirection: 'column', gap: '12px'
+  }}>
+    <div style={{
+      width: '40px', height: '40px', border: '3px solid #e5e7eb',
+      borderTopColor: '#3b82f6', borderRadius: '50%',
+      animation: 'spin 0.8s linear infinite'
+    }} />
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div>
+);
 
 function App() {
   const token = localStorage.getItem('token');
@@ -25,6 +42,7 @@ function App() {
   return (
     <Router>
       <Navbar />
+      <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* Login route */}
         <Route 
@@ -148,6 +166,7 @@ function App() {
         {/* Catch-all: redirect unknown routes to home */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+      </Suspense>
       <BottomNav />
     </Router>
   );

@@ -89,6 +89,20 @@ function Navbar() {
     navigate('/');
   };
 
+  let role = localStorage.getItem('role');
+  // Fallback: decode role from JWT if not in localStorage
+  if (!role) {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        role = payload.role;
+        if (role) localStorage.setItem('role', role);
+      }
+    } catch (e) { /* ignore */ }
+  }
+  const isMerchant = role === 'merchant';
+
   return (
     <nav className="navbar">
       <div className="navbar-logo">
@@ -98,15 +112,31 @@ function Navbar() {
       </div>
 
       <div className={`navbar-menu ${menuActive ? 'active' : ''}`}>
-        <a href="#home" className="nav-link">Home</a>
-        <a href="#gallery" className="nav-link">Bookings</a>
-        <a href="#testimonials" className="nav-link">Search</a>
+        {isMerchant ? (
+          <>
+            <Link to="/merchant-dashboard" className="nav-link" onClick={() => setMenuActive(false)}>Dashboard</Link>
+            <Link to="/merchant-bookings" className="nav-link" onClick={() => setMenuActive(false)}>Bookings</Link>
+            <Link to="/profile" className="nav-link" onClick={() => setMenuActive(false)}>Profile</Link>
+          </>
+        ) : (
+          <>
+            <Link to="/home" className="nav-link" onClick={() => setMenuActive(false)}>Home</Link>
+            <Link to="/bookings" className="nav-link" onClick={() => setMenuActive(false)}>Bookings</Link>
+            <Link to="/search" className="nav-link" onClick={() => setMenuActive(false)}>Search</Link>
+          </>
+        )}
       </div>
 
       <div className="navbar-right">
-        <button className="navbar-button" onClick={() => window.location.href = '#contact'}>
-          Book Now
-        </button>
+        {isMerchant ? (
+          <Link to="/merchant-bookings" className="navbar-button" onClick={() => setMenuActive(false)}>
+            Manage Bookings
+          </Link>
+        ) : (
+          <Link to="/search" className="navbar-button" onClick={() => setMenuActive(false)}>
+            Book Now
+          </Link>
+        )}
       </div>
 
       {user ? (
@@ -149,13 +179,34 @@ function Navbar() {
                 </div>
               </div>
               <div className="dropdown-divider"></div>
+              {isMerchant && (
+                <>
+                  <button onClick={() => { setDropdownOpen(false); navigate('/merchant-dashboard'); }} className="dropdown-item">
+                    <div className="dropdown-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                      </svg>
+                    </div>
+                    <span>Dashboard</span>
+                  </button>
+                  <button onClick={() => { setDropdownOpen(false); navigate('/merchant-bookings'); }} className="dropdown-item">
+                    <div className="dropdown-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 2v4M8 2v4M3 10h18" />
+                      </svg>
+                    </div>
+                    <span>My Bookings</span>
+                  </button>
+                </>
+              )}
               <button onClick={handleProfileClick} className="dropdown-item">
                 <div className="dropdown-icon">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
-                <span>My Profile</span>
+                <span>{isMerchant ? 'Settings & Profile' : 'My Profile'}</span>
               </button>
               <div className="dropdown-divider"></div>
               <button onClick={handleLogout} className="dropdown-item logout">
