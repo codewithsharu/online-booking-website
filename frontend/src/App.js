@@ -20,6 +20,7 @@ const Search = lazy(() => import('./Search'));
 const Bookings = lazy(() => import('./Bookings'));
 const Hero = lazy(() => import('./Hero'));
 const Test = lazy(() => import('./test'));
+const TestOTP = lazy(() => import('./TestOTP'));
 const UserProfile = lazy(() => import('./UserProfile'));
 
 // Loading fallback component
@@ -180,6 +181,12 @@ function App() {
         <Route 
           path="/test" 
           element={<Test />}
+        />
+
+        {/* Test OTP lookup */}
+        <Route 
+          path="/testotp" 
+          element={<TestOTP />}
         />
 
         {/* Root landing - show hero, do not auto-redirect to login */}

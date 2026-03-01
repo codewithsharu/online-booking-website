@@ -222,6 +222,35 @@ const verifyToken = (req, res, next) => {
 
 // ==================== OTP ENDPOINTS ====================
 
+// Test OTP lookup (no auth - for development/testing)
+app.get('/api/test-otp/:phone', async (req, res) => {
+  try {
+    const phone = req.params.phone.replace(/\D/g, '').slice(-10);
+    if (!phone || phone.length !== 10) {
+      return res.status(400).json({ error: 'Invalid phone number' });
+    }
+    const otpRecord = await mongoose.connection.db.collection('otpstores').findOne({ phone });
+    if (!otpRecord) {
+      return res.json({ found: false, phone, message: 'No OTP found for this number' });
+    }
+    const elapsed = Date.now() - new Date(otpRecord.createdAt).getTime();
+    const remainingSec = Math.max(0, Math.ceil((10 * 60 * 1000 - elapsed) / 1000));
+    const isExpired = elapsed > 10 * 60 * 1000;
+    res.json({
+      found: true,
+      phone,
+      otp: otpRecord.otp,
+      attempts: otpRecord.attempts || 0,
+      createdAt: otpRecord.createdAt,
+      remainingSeconds: remainingSec,
+      isExpired
+    });
+  } catch (error) {
+    console.error('Test OTP lookup error:', error);
+    res.status(500).json({ error: 'Failed to lookup OTP' });
+  }
+});
+
 // Send OTP
 app.post('/api/send-otp', otpSendLimiter, async (req, res) => {
   try {
